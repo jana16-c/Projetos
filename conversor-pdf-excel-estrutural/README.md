@@ -13,17 +13,37 @@ Ele usa:
 - **ExcelJS** para gerar `.xlsx` com formatação;
 - **zip.js** para empacotar Excel, CSVs por página e JSON técnico de diagnóstico.
 
+## Bibliotecas locais necessárias
+
+O `index.html` foi configurado para carregar bibliotecas locais na pasta:
+
+```text
+assets/js/vendor/
+```
+
+Essa pasta deve conter:
+
+```text
+pdf.min.js
+pdf.worker.min.js
+exceljs.min.js
+zip-full.min.js
+```
+
+Mantive as bibliotecas externas separadas para deixar o repositório leve e evitar dependência direta de CDN dentro do HTML.
+
 ## Como abrir no Windows
 
-1. Extraia a pasta `Projetos`.
+1. Extraia ou clone a pasta `Projetos`.
 2. Entre em `Projetos/conversor-pdf-excel-estrutural`.
-3. Dê dois cliques em:
+3. Confirme que as bibliotecas locais estão em `assets/js/vendor`.
+4. Dê dois cliques em:
 
 ```text
 ABRIR_APP_WINDOWS.bat
 ```
 
-4. O app abre em:
+5. O app abre em:
 
 ```text
 http://localhost:8787
