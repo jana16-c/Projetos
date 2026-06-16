@@ -1,0 +1,21 @@
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Dependências futuras
+node_modules/
+
+# Saídas geradas
+*.xlsx
+*.zip
+exports/
+output/
+
+# Python local
+__pycache__/
+*.pyc
+.venv/
+venv/
