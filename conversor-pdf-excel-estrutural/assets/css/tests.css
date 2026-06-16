@@ -1,0 +1,32 @@
+.test-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.test-output {
+  min-height: 180px;
+  max-height: 420px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fbfc;
+  color: var(--text);
+  padding: 14px;
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.test-ok {
+  color: var(--ok);
+  font-weight: 800;
+}
+
+.test-error {
+  color: var(--danger);
+  font-weight: 800;
+}
