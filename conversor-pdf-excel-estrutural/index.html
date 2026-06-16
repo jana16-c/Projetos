@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Conversor PDF → Excel Estrutural</title>
+  <title>Conversor PDF para Excel Estrutural</title>
   <link rel="stylesheet" href="assets/css/app.css" />
 </head>
 <body>
@@ -11,100 +11,195 @@
     <header class="hero">
       <div>
         <p class="eyebrow">Projetos · Processador Local</p>
-        <h1>Conversor PDF → Excel Estrutural</h1>
-        <p class="hero-text">Converta páginas específicas de PDFs textuais em Excel com reconstrução de linhas, colunas e tabulação por geometria do PDF.</p>
+        <h1>Conversor PDF para Excel Estrutural</h1>
+        <p class="hero-text">Converta páginas específicas de PDFs textuais em Excel com reconstrução de linhas, colunas e tabulação por análise da estrutura do PDF.</p>
       </div>
-      <div class="hero-badge">
+      <div class="hero-badge" aria-label="Bibliotecas usadas">
         <span>pdf.js</span>
         <span>ExcelJS</span>
         <span>zip.js</span>
       </div>
     </header>
 
-    <section class="panel grid-2">
-      <div class="drop-zone" id="dropZone">
-        <input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden />
-        <div class="drop-icon">PDF</div>
-        <h2>Selecionar PDF</h2>
-        <p>Arraste o arquivo aqui ou clique para escolher.</p>
-        <button class="btn primary" id="selectPdfBtn" type="button">Escolher PDF</button>
-        <p class="file-name" id="fileName">Nenhum arquivo selecionado</p>
-      </div>
+    <nav class="tabs" aria-label="Navegação do processador">
+      <button class="tab-button active" type="button" data-tab-target="processador">Processador</button>
+      <button class="tab-button" type="button" data-tab-target="utilizacao">Utilização</button>
+      <button class="tab-button" type="button" data-tab-target="precisao">Precisão e diagnóstico</button>
+    </nav>
 
-      <form class="options" id="optionsForm">
-        <div class="field">
-          <label for="pageSpec">Páginas para converter</label>
-          <input id="pageSpec" name="pageSpec" type="text" placeholder="Ex.: 1-3, 5, 8-10" value="1" />
-          <small>Use intervalos e vírgulas. Deixe vazio para converter todas.</small>
+    <section class="tab-panel active" id="tab-processador" data-tab-panel="processador">
+      <section class="panel grid-2">
+        <div class="drop-zone" id="dropZone">
+          <input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden />
+          <div class="drop-icon">PDF</div>
+          <h2>Selecionar PDF</h2>
+          <p>Arraste o arquivo aqui ou clique para escolher.</p>
+          <button class="btn primary" id="selectPdfBtn" type="button">Escolher PDF</button>
+          <p class="file-name" id="fileName">Nenhum arquivo selecionado</p>
         </div>
 
-        <div class="field">
-          <label for="mode">Modo de extração</label>
-          <select id="mode" name="mode">
-            <option value="structural" selected>Estrutural inteligente</option>
-            <option value="visual-grid">Grade visual por posição</option>
-          </select>
-        </div>
+        <form class="options" id="optionsForm">
+          <div class="field">
+            <label for="pageSpec">Páginas para converter</label>
+            <input id="pageSpec" name="pageSpec" type="text" placeholder="Ex.: 1-3, 5, 8-10" value="1" />
+            <small>Use intervalos e vírgulas. Deixe vazio para converter todas.</small>
+          </div>
 
-        <div class="compact-grid">
           <div class="field">
-            <label for="rowTolerance">Tolerância de linha</label>
-            <input id="rowTolerance" name="rowTolerance" type="number" min="0.25" max="2" step="0.05" value="0.62" />
+            <label for="mode">Modo de extração</label>
+            <select id="mode" name="mode">
+              <option value="structural" selected>Estrutural inteligente</option>
+              <option value="visual-grid">Grade visual por posição</option>
+            </select>
           </div>
-          <div class="field">
-            <label for="columnTolerance">Tolerância de coluna</label>
-            <input id="columnTolerance" name="columnTolerance" type="number" min="2" max="40" step="1" value="9" />
+
+          <div class="compact-grid">
+            <div class="field">
+              <label for="rowTolerance">Tolerância de linha</label>
+              <input id="rowTolerance" name="rowTolerance" type="number" min="0.25" max="2" step="0.05" value="0.62" />
+            </div>
+            <div class="field">
+              <label for="columnTolerance">Tolerância de coluna</label>
+              <input id="columnTolerance" name="columnTolerance" type="number" min="2" max="40" step="1" value="9" />
+            </div>
+            <div class="field">
+              <label for="gapFactor">Separação de célula</label>
+              <input id="gapFactor" name="gapFactor" type="number" min="0.8" max="6" step="0.1" value="2.3" />
+            </div>
+            <div class="field check-field">
+              <label>
+                <input id="sheetPerPage" name="sheetPerPage" type="checkbox" checked />
+                Uma aba por página
+              </label>
+            </div>
           </div>
-          <div class="field">
-            <label for="gapFactor">Separação de célula</label>
-            <input id="gapFactor" name="gapFactor" type="number" min="0.8" max="6" step="0.1" value="2.3" />
-          </div>
+
           <div class="field check-field">
             <label>
-              <input id="sheetPerPage" name="sheetPerPage" type="checkbox" checked />
-              Uma aba por página
+              <input id="mergeTitles" name="mergeTitles" type="checkbox" checked />
+              Mesclar títulos detectados no Excel
             </label>
           </div>
-        </div>
 
-        <div class="field check-field">
-          <label>
-            <input id="mergeTitles" name="mergeTitles" type="checkbox" checked />
-            Mesclar títulos detectados no Excel
-          </label>
-        </div>
+          <div class="actions">
+            <button class="btn primary" id="processBtn" type="button">Processar páginas</button>
+            <button class="btn" id="exportXlsxBtn" type="button" disabled>Exportar Excel</button>
+            <button class="btn" id="exportZipBtn" type="button" disabled>Exportar ZIP completo</button>
+          </div>
+        </form>
+      </section>
 
-        <div class="actions">
-          <button class="btn primary" id="processBtn" type="button">Processar páginas</button>
-          <button class="btn" id="exportXlsxBtn" type="button" disabled>Exportar Excel</button>
-          <button class="btn" id="exportZipBtn" type="button" disabled>Exportar ZIP completo</button>
+      <section class="panel status-panel">
+        <div class="status-row">
+          <strong>Status</strong>
+          <span id="statusText">Aguardando PDF.</span>
         </div>
-      </form>
+        <div class="progress" aria-label="Progresso"><div id="progressBar"></div></div>
+        <div class="metrics" id="metrics"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Prévia</p>
+            <h2>Resultado extraído</h2>
+          </div>
+          <p class="hint">A prévia mostra as primeiras linhas por página. O Excel recebe o conteúdo completo.</p>
+        </div>
+        <div id="preview" class="preview empty">Nenhum resultado processado ainda.</div>
+      </section>
     </section>
 
-    <section class="panel status-panel">
-      <div class="status-row">
-        <strong>Status</strong>
-        <span id="statusText">Aguardando PDF.</span>
-      </div>
-      <div class="progress" aria-label="Progresso"><div id="progressBar"></div></div>
-      <div class="metrics" id="metrics"></div>
-    </section>
-
-    <section class="panel">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Prévia</p>
-          <h2>Resultado extraído</h2>
+    <section class="tab-panel" id="tab-utilizacao" data-tab-panel="utilizacao">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Manual rápido</p>
+            <h2>Utilização do processador</h2>
+          </div>
+          <p class="hint">Esta aba explica o fluxo de uso e a função de cada botão.</p>
         </div>
-        <p class="hint">A prévia mostra as primeiras linhas por página. O Excel recebe o conteúdo completo.</p>
-      </div>
-      <div id="preview" class="preview empty">Nenhum resultado processado ainda.</div>
+
+        <div class="usage-grid">
+          <article class="usage-card">
+            <h3>Escolher PDF</h3>
+            <p>Seleciona o arquivo PDF que será lido. O processador trabalha melhor com PDFs textuais, ou seja, arquivos em que o texto pode ser selecionado com o mouse.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Páginas para converter</h3>
+            <p>Define quais páginas serão processadas. Aceita páginas isoladas e intervalos, como <strong>1-3, 5, 8-10</strong>. Se o campo ficar vazio, todas as páginas serão convertidas.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Modo estrutural inteligente</h3>
+            <p>Usa a posição real dos textos no PDF para reconstruir linhas e colunas. É o modo recomendado para tabelas, demonstrativos, guias e relatórios.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Grade visual por posição</h3>
+            <p>Preserva melhor o alinhamento visual quando o PDF não possui colunas constantes. Pode gerar mais colunas vazias, mas ajuda em layouts irregulares.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Tolerância de linha</h3>
+            <p>Controla o agrupamento vertical dos textos. Aumente se uma mesma linha estiver sendo quebrada em duas. Diminua se linhas diferentes estiverem sendo juntadas.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Tolerância de coluna</h3>
+            <p>Controla o agrupamento horizontal das colunas. Aumente se valores da mesma coluna estiverem caindo em colunas diferentes. Diminua se colunas vizinhas estiverem sendo misturadas.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Separação de célula</h3>
+            <p>Define quando dois blocos de texto próximos devem continuar na mesma célula ou virar células separadas. É útil em PDFs que quebram palavras e valores em muitos fragmentos.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Uma aba por página</h3>
+            <p>Quando marcado, cada página convertida vira uma aba separada no Excel. Quando desmarcado, todas as páginas ficam em uma única aba.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Mesclar títulos detectados</h3>
+            <p>Quando marcado, linhas reconhecidas como títulos são mescladas no Excel para preservar a leitura do relatório.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Processar páginas</h3>
+            <p>Lê as páginas selecionadas, reconstrói a estrutura e gera uma prévia. Os botões de exportação só são liberados após esse processamento.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Exportar Excel</h3>
+            <p>Gera um arquivo .xlsx com as tabelas extraídas, formatação funcional, títulos e uma aba de diagnóstico.</p>
+          </article>
+
+          <article class="usage-card">
+            <h3>Exportar ZIP completo</h3>
+            <p>Gera um pacote com Excel, CSV por página e JSON técnico da extração. Use este modo quando precisar conferir ou auditar o resultado.</p>
+          </article>
+        </div>
+      </section>
     </section>
 
-    <section class="panel technical-note">
-      <h2>Nota de precisão</h2>
-      <p>Este conversor trabalha com PDFs textuais. Em PDFs escaneados, a camada de texto não existe e será necessário OCR. A extração é baseada nas coordenadas reais do PDF, não em simples cópia de texto.</p>
+    <section class="tab-panel" id="tab-precisao" data-tab-panel="precisao">
+      <section class="panel technical-note">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Precisão</p>
+            <h2>Como a extração funciona</h2>
+          </div>
+        </div>
+        <p>Este conversor trabalha com PDFs textuais. Em PDFs escaneados, a camada de texto não existe e será necessário OCR. A extração é baseada nas coordenadas reais do PDF, não em simples cópia de texto.</p>
+        <div class="rule-list">
+          <div><strong>Linhas:</strong> os fragmentos são agrupados pela posição vertical e pelo tamanho da fonte.</div>
+          <div><strong>Colunas:</strong> o processador procura alinhamentos horizontais repetidos ao longo da página.</div>
+          <div><strong>Células:</strong> textos próximos são unidos; lacunas maiores indicam separação de célula.</div>
+          <div><strong>Diagnóstico:</strong> o Excel inclui uma aba com quantidade de linhas, colunas, itens de texto, confiança e avisos.</div>
+        </div>
+      </section>
     </section>
   </main>
 
