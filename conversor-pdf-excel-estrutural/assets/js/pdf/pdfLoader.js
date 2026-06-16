@@ -1,10 +1,7 @@
-import { PDFJS_WORKER } from '../config/settings.js';
+import { ensurePdfJsRuntime } from '../vendor/vendorLoader.js';
 
 export async function ensurePdfJs() {
-  if (!window.pdfjsLib) {
-    throw new Error('pdf.js não foi carregado. Adicione os arquivos da biblioteca na pasta assets/js/vendor.');
-  }
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  await ensurePdfJsRuntime();
   return window.pdfjsLib;
 }
 
