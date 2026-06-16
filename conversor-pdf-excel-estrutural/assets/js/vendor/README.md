@@ -1,9 +1,12 @@
-# Bibliotecas externas
+# Bibliotecas externas locais
 
-Por padrão, o `index.html` carrega as bibliotecas por CDN:
+Esta pasta deve conter as bibliotecas de terceiros usadas pelo navegador:
 
-- pdf.js
-- ExcelJS
-- zip.js
+- `pdf.min.js`
+- `pdf.worker.min.js`
+- `exceljs.min.js`
+- `zip-full.min.js`
 
-Para deixar 100% offline, baixe as versões minificadas e troque os `<script src="https://...">` do `index.html` por caminhos locais nesta pasta.
+Por organização e para manter o projeto leve, os arquivos minificados de terceiros podem ser baixados separadamente das distribuições oficiais das bibliotecas.
+
+O `index.html` está configurado para carregar estes arquivos localmente.
