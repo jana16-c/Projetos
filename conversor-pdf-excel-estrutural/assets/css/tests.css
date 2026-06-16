@@ -1,3 +1,14 @@
+.page-selection-info {
+  display: block;
+  color: var(--petroleum-3);
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.page-selection-info[data-state="error"] {
+  color: var(--danger);
+}
+
 .test-grid {
   display: flex;
   flex-wrap: wrap;
