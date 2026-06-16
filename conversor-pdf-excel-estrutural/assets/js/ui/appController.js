@@ -1,4 +1,4 @@
-import { $ } from '../utils/dom.js';
+import { $, $all } from '../utils/dom.js';
 import { parsePageSpec } from '../utils/pages.js';
 import { downloadBlob } from '../utils/download.js';
 import { loadPdfDocument, extractPageTextItems } from '../pdf/pdfLoader.js';
@@ -19,6 +19,7 @@ export class AppController {
 
     this.bindElements();
     this.bindEvents();
+    this.bindTabs();
   }
 
   bindElements() {
@@ -53,6 +54,19 @@ export class AppController {
     this.processBtn.addEventListener('click', () => this.process());
     this.exportXlsxBtn.addEventListener('click', () => this.exportExcel());
     this.exportZipBtn.addEventListener('click', () => this.exportZip());
+  }
+
+  bindTabs() {
+    const buttons = $all('[data-tab-target]');
+    const panels = $all('[data-tab-panel]');
+
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        const target = button.dataset.tabTarget;
+        for (const item of buttons) item.classList.toggle('active', item === button);
+        for (const panel of panels) panel.classList.toggle('active', panel.dataset.tabPanel === target);
+      });
+    }
   }
 
   async setFile(file) {
