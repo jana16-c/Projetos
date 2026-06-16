@@ -24,6 +24,7 @@
     <nav class="tabs" aria-label="Navegação do processador">
       <button class="tab-button active" type="button" data-tab-target="processador">Processador</button>
       <button class="tab-button" type="button" data-tab-target="utilizacao">Utilização</button>
+      <button class="tab-button" type="button" data-tab-target="testes">Testes</button>
       <button class="tab-button" type="button" data-tab-target="precisao">Precisão e diagnóstico</button>
     </nav>
 
@@ -125,62 +126,72 @@
             <h3>Escolher PDF</h3>
             <p>Seleciona o arquivo PDF que será lido. O processador trabalha melhor com PDFs textuais, ou seja, arquivos em que o texto pode ser selecionado com o mouse.</p>
           </article>
-
           <article class="usage-card">
             <h3>Páginas para converter</h3>
             <p>Define quais páginas serão processadas. Aceita páginas isoladas e intervalos, como <strong>1-3, 5, 8-10</strong>. Se o campo ficar vazio, todas as páginas serão convertidas.</p>
           </article>
-
           <article class="usage-card">
             <h3>Modo estrutural inteligente</h3>
             <p>Usa a posição real dos textos no PDF para reconstruir linhas e colunas. É o modo recomendado para tabelas, demonstrativos, guias e relatórios.</p>
           </article>
-
           <article class="usage-card">
             <h3>Grade visual por posição</h3>
             <p>Preserva melhor o alinhamento visual quando o PDF não possui colunas constantes. Pode gerar mais colunas vazias, mas ajuda em layouts irregulares.</p>
           </article>
-
           <article class="usage-card">
             <h3>Tolerância de linha</h3>
             <p>Controla o agrupamento vertical dos textos. Aumente se uma mesma linha estiver sendo quebrada em duas. Diminua se linhas diferentes estiverem sendo juntadas.</p>
           </article>
-
           <article class="usage-card">
             <h3>Tolerância de coluna</h3>
             <p>Controla o agrupamento horizontal das colunas. Aumente se valores da mesma coluna estiverem caindo em colunas diferentes. Diminua se colunas vizinhas estiverem sendo misturadas.</p>
           </article>
-
           <article class="usage-card">
             <h3>Separação de célula</h3>
             <p>Define quando dois blocos de texto próximos devem continuar na mesma célula ou virar células separadas. É útil em PDFs que quebram palavras e valores em muitos fragmentos.</p>
           </article>
-
           <article class="usage-card">
             <h3>Uma aba por página</h3>
             <p>Quando marcado, cada página convertida vira uma aba separada no Excel. Quando desmarcado, todas as páginas ficam em uma única aba.</p>
           </article>
-
           <article class="usage-card">
             <h3>Mesclar títulos detectados</h3>
             <p>Quando marcado, linhas reconhecidas como títulos são mescladas no Excel para preservar a leitura do relatório.</p>
           </article>
-
           <article class="usage-card">
             <h3>Processar páginas</h3>
             <p>Lê as páginas selecionadas, reconstrói a estrutura e gera uma prévia. Os botões de exportação só são liberados após esse processamento.</p>
           </article>
-
           <article class="usage-card">
             <h3>Exportar Excel</h3>
             <p>Gera um arquivo .xlsx com as tabelas extraídas, formatação funcional, títulos e uma aba de diagnóstico.</p>
           </article>
-
           <article class="usage-card">
             <h3>Exportar ZIP completo</h3>
             <p>Gera um pacote com Excel, CSV por página e JSON técnico da extração. Use este modo quando precisar conferir ou auditar o resultado.</p>
           </article>
         </div>
+      </section>
+    </section>
+
+    <section class="tab-panel" id="tab-testes" data-tab-panel="testes">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Testes locais</p>
+            <h2>Testes no próprio index.html</h2>
+          </div>
+          <p class="hint">Use estes testes pelo Live Preview antes de converter PDFs reais.</p>
+        </div>
+
+        <div class="test-grid">
+          <button class="btn primary" id="testLibrariesBtn" type="button">Testar bibliotecas</button>
+          <button class="btn" id="testParserBtn" type="button">Testar seleção de páginas</button>
+          <button class="btn" id="testExtractionBtn" type="button">Testar extração simulada</button>
+          <button class="btn" id="clearTestsBtn" type="button">Limpar testes</button>
+        </div>
+
+        <pre class="test-output" id="testOutput">Nenhum teste executado.</pre>
       </section>
     </section>
 
@@ -203,9 +214,6 @@
     </section>
   </main>
 
-  <script src="assets/js/vendor/pdf.min.js"></script>
-  <script src="assets/js/vendor/exceljs.min.js"></script>
-  <script src="assets/js/vendor/zip-full.min.js"></script>
   <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>
