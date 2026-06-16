@@ -13,6 +13,16 @@ Ele usa:
 - **ExcelJS** para gerar `.xlsx` com formatação;
 - **zip.js** para empacotar Excel, CSVs por página e JSON técnico de diagnóstico.
 
+## Layout
+
+A interface foi construída com:
+
+- fonte Inter, quando disponível no sistema;
+- paleta em azul petróleo;
+- bordas e divisórias finas;
+- navegação por abas;
+- aba **Utilização** explicando cada campo e cada botão.
+
 ## Bibliotecas locais necessárias
 
 O `index.html` foi configurado para carregar bibliotecas locais na pasta:
@@ -30,19 +40,24 @@ exceljs.min.js
 zip-full.min.js
 ```
 
-Mantive as bibliotecas externas separadas para deixar o repositório leve e evitar dependência direta de CDN dentro do HTML.
+Para baixar automaticamente no Windows, execute:
 
-## Como abrir no Windows
+```text
+BAIXAR_BIBLIOTECAS_WINDOWS.bat
+```
 
-1. Extraia ou clone a pasta `Projetos`.
-2. Entre em `Projetos/conversor-pdf-excel-estrutural`.
-3. Confirme que as bibliotecas locais estão em `assets/js/vendor`.
-4. Dê dois cliques em:
+Depois execute:
 
 ```text
 ABRIR_APP_WINDOWS.bat
 ```
 
+## Como abrir no Windows
+
+1. Clone ou atualize o repositório `Projetos`.
+2. Entre em `Projetos/conversor-pdf-excel-estrutural`.
+3. Execute `BAIXAR_BIBLIOTECAS_WINDOWS.bat` na primeira vez.
+4. Execute `ABRIR_APP_WINDOWS.bat`.
 5. O app abre em:
 
 ```text
@@ -51,19 +66,21 @@ http://localhost:8787
 
 ## Como usar
 
-1. Selecione ou arraste o PDF.
-2. Informe as páginas desejadas, por exemplo:
+1. Abra a aba **Utilização** para ver a função de cada campo.
+2. Volte para a aba **Processador**.
+3. Selecione ou arraste o PDF.
+4. Informe as páginas desejadas, por exemplo:
 
 ```text
 1-3, 5, 8-10
 ```
 
-3. Ajuste o modo de extração:
+5. Ajuste o modo de extração:
    - **Estrutural inteligente**: melhor para tabelas reais e demonstrativos.
    - **Grade visual por posição**: melhor quando a tabela não tem colunas consistentes, mas o alinhamento visual importa.
-4. Clique em **Processar páginas**.
-5. Confira a prévia.
-6. Exporte em Excel ou ZIP completo.
+6. Clique em **Processar páginas**.
+7. Confira a prévia.
+8. Exporte em Excel ou ZIP completo.
 
 ## Precisão
 
