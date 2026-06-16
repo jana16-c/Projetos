@@ -21,11 +21,35 @@ A interface foi construída com:
 - paleta em azul petróleo;
 - bordas e divisórias finas;
 - navegação por abas;
-- aba **Utilização** explicando cada campo e cada botão.
+- aba **Utilização** explicando cada campo e cada botão;
+- aba **Testes** para validar bibliotecas, seleção de páginas e extração simulada diretamente no `index.html`.
 
-## Bibliotecas locais necessárias
+## Uso com Live Preview no VS Code
 
-O `index.html` foi configurado para carregar bibliotecas locais na pasta:
+O app agora pode ser testado diretamente pelo **Live Preview** do VS Code.
+
+1. Abra a pasta `Projetos` no VS Code.
+2. Abra o arquivo:
+
+```text
+conversor-pdf-excel-estrutural/index.html
+```
+
+3. Clique com o botão direito no arquivo e escolha **Show Preview** ou **Open with Live Preview**.
+4. Na página aberta, entre na aba **Testes**.
+5. Clique em:
+
+```text
+Testar bibliotecas
+Testar seleção de páginas
+Testar extração simulada
+```
+
+Se as bibliotecas locais não existirem, o app tenta carregar as bibliotecas por CDN automaticamente. Para uso sem internet, execute `BAIXAR_BIBLIOTECAS_WINDOWS.bat` uma vez.
+
+## Bibliotecas locais opcionais
+
+O `index.html` consegue tentar CDN automaticamente, mas o modo offline depende dos arquivos locais em:
 
 ```text
 assets/js/vendor/
@@ -52,11 +76,11 @@ Depois execute:
 ABRIR_APP_WINDOWS.bat
 ```
 
-## Como abrir no Windows
+## Como abrir no Windows sem Live Preview
 
 1. Clone ou atualize o repositório `Projetos`.
 2. Entre em `Projetos/conversor-pdf-excel-estrutural`.
-3. Execute `BAIXAR_BIBLIOTECAS_WINDOWS.bat` na primeira vez.
+3. Execute `BAIXAR_BIBLIOTECAS_WINDOWS.bat` na primeira vez, se quiser usar offline.
 4. Execute `ABRIR_APP_WINDOWS.bat`.
 5. O app abre em:
 
@@ -114,6 +138,7 @@ assets/js/
 ├── export/
 ├── pdf/
 ├── ui/
+├── vendor/
 └── utils/
 ```
 
