@@ -24,6 +24,18 @@ A interface foi construída com:
 - aba **Utilização** explicando cada campo e cada botão;
 - aba **Testes** para validar bibliotecas, seleção de páginas e extração simulada diretamente no `index.html`.
 
+## Correção da seleção de páginas
+
+O campo **Páginas para converter** agora possui estado próprio. Quando você digita uma seleção manual, como `2-3` ou `2, 4-5`, o carregamento do PDF não sobrescreve essa escolha com `1-total`.
+
+A interface também mostra um resumo logo abaixo do campo, por exemplo:
+
+```text
+3 de 10 página(s) serão processadas: 2, 4, 5.
+```
+
+Esse resumo é a seleção que será usada internamente pelo botão **Processar páginas**.
+
 ## Uso com Live Preview no VS Code
 
 O app agora pode ser testado diretamente pelo **Live Preview** do VS Code.
@@ -99,12 +111,13 @@ http://localhost:8787
 1-3, 5, 8-10
 ```
 
-5. Ajuste o modo de extração:
+5. Confira o resumo logo abaixo do campo de páginas. Se ele mostrar “todas as páginas”, o campo está vazio ou contém o intervalo completo.
+6. Ajuste o modo de extração:
    - **Estrutural inteligente**: melhor para tabelas reais e demonstrativos.
    - **Grade visual por posição**: melhor quando a tabela não tem colunas consistentes, mas o alinhamento visual importa.
-6. Clique em **Processar páginas**.
-7. Confira a prévia.
-8. Exporte em Excel ou ZIP completo.
+7. Clique em **Processar páginas**.
+8. Confira a prévia.
+9. Exporte em Excel ou ZIP completo.
 
 ## Precisão
 
