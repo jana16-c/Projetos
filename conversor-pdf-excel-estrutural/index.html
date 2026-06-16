@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conversor PDF → Excel Estrutural</title>
+  <link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Projetos · Processador Local</p>
+        <h1>Conversor PDF → Excel Estrutural</h1>
+        <p class="hero-text">Converta páginas específicas de PDFs textuais em Excel com reconstrução de linhas, colunas e tabulação por geometria do PDF.</p>
+      </div>
+      <div class="hero-badge">
+        <span>pdf.js</span>
+        <span>ExcelJS</span>
+        <span>zip.js</span>
+      </div>
+    </header>
+
+    <section class="panel grid-2">
+      <div class="drop-zone" id="dropZone">
+        <input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden />
+        <div class="drop-icon">PDF</div>
+        <h2>Selecionar PDF</h2>
+        <p>Arraste o arquivo aqui ou clique para escolher.</p>
+        <button class="btn primary" id="selectPdfBtn" type="button">Escolher PDF</button>
+        <p class="file-name" id="fileName">Nenhum arquivo selecionado</p>
+      </div>
+
+      <form class="options" id="optionsForm">
+        <div class="field">
+          <label for="pageSpec">Páginas para converter</label>
+          <input id="pageSpec" name="pageSpec" type="text" placeholder="Ex.: 1-3, 5, 8-10" value="1" />
+          <small>Use intervalos e vírgulas. Deixe vazio para converter todas.</small>
+        </div>
+
+        <div class="field">
+          <label for="mode">Modo de extração</label>
+          <select id="mode" name="mode">
+            <option value="structural" selected>Estrutural inteligente</option>
+            <option value="visual-grid">Grade visual por posição</option>
+          </select>
+        </div>
+
+        <div class="compact-grid">
+          <div class="field">
+            <label for="rowTolerance">Tolerância de linha</label>
+            <input id="rowTolerance" name="rowTolerance" type="number" min="0.25" max="2" step="0.05" value="0.62" />
+          </div>
+          <div class="field">
+            <label for="columnTolerance">Tolerância de coluna</label>
+            <input id="columnTolerance" name="columnTolerance" type="number" min="2" max="40" step="1" value="9" />
+          </div>
+          <div class="field">
+            <label for="gapFactor">Separação de célula</label>
+            <input id="gapFactor" name="gapFactor" type="number" min="0.8" max="6" step="0.1" value="2.3" />
+          </div>
+          <div class="field check-field">
+            <label>
+              <input id="sheetPerPage" name="sheetPerPage" type="checkbox" checked />
+              Uma aba por página
+            </label>
+          </div>
+        </div>
+
+        <div class="field check-field">
+          <label>
+            <input id="mergeTitles" name="mergeTitles" type="checkbox" checked />
+            Mesclar títulos detectados no Excel
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="processBtn" type="button">Processar páginas</button>
+          <button class="btn" id="exportXlsxBtn" type="button" disabled>Exportar Excel</button>
+          <button class="btn" id="exportZipBtn" type="button" disabled>Exportar ZIP completo</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel status-panel">
+      <div class="status-row">
+        <strong>Status</strong>
+        <span id="statusText">Aguardando PDF.</span>
+      </div>
+      <div class="progress" aria-label="Progresso"><div id="progressBar"></div></div>
+      <div class="metrics" id="metrics"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Prévia</p>
+          <h2>Resultado extraído</h2>
+        </div>
+        <p class="hint">A prévia mostra as primeiras linhas por página. O Excel recebe o conteúdo completo.</p>
+      </div>
+      <div id="preview" class="preview empty">Nenhum resultado processado ainda.</div>
+    </section>
+
+    <section class="panel technical-note">
+      <h2>Nota de precisão</h2>
+      <p>Este conversor trabalha com PDFs textuais. Em PDFs escaneados, a camada de texto não existe e será necessário OCR. A extração é baseada nas coordenadas reais do PDF, não em simples cópia de texto.</p>
+    </section>
+  </main>
+
+  <script src="assets/js/vendor/pdf.min.js"></script>
+  <script src="assets/js/vendor/exceljs.min.js"></script>
+  <script src="assets/js/vendor/zip-full.min.js"></script>
+  <script type="module" src="assets/js/main.js"></script>
+</body>
+</html>
