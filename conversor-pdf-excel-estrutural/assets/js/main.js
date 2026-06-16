@@ -1,5 +1,10 @@
 import { AppController } from './ui/appController.js';
 
+const extraCss = document.createElement('link');
+extraCss.rel = 'stylesheet';
+extraCss.href = 'assets/css/tests.css';
+document.head.appendChild(extraCss);
+
 window.addEventListener('DOMContentLoaded', () => {
   try {
     new AppController();
