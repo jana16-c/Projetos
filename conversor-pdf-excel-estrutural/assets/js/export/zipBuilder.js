@@ -1,9 +1,10 @@
 import { matrixToCsv } from './csvBuilder.js';
 import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js';
 import { safeFileStem } from '../utils/download.js';
+import { ensureZipJsRuntime } from '../vendor/vendorLoader.js';
 
 export async function buildZipPackage(results, options, pdfFileName) {
-  if (!window.zip) throw new Error('zip.js não foi carregado.');
+  await ensureZipJsRuntime();
 
   const writer = new zip.ZipWriter(new zip.BlobWriter('application/zip'));
   const stem = safeFileStem(pdfFileName);
