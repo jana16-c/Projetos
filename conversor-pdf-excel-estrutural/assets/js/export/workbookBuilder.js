@@ -1,8 +1,9 @@
 import { cellLooksDate, cellLooksNumeric, normalizeNumberLike } from '../extraction/geometry.js';
 import { safeFileStem } from '../utils/download.js';
+import { ensureExcelJsRuntime } from '../vendor/vendorLoader.js';
 
 export async function buildWorkbook(results, options) {
-  if (!window.ExcelJS) throw new Error('ExcelJS não foi carregado.');
+  await ensureExcelJsRuntime();
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Conversor PDF Excel Estrutural';
@@ -32,7 +33,7 @@ function addSingleWorksheet(workbook, results, options) {
   for (const result of results) {
     ws.getCell(currentRow, 1).value = `Página ${result.pageNumber}`;
     ws.getCell(currentRow, 1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    ws.getCell(currentRow, 1).fill = solid('071A33');
+    ws.getCell(currentRow, 1).fill = solid('0B3D4A');
     ws.mergeCells(currentRow, 1, currentRow, Math.max(1, result.matrix[0]?.length || 1));
     currentRow++;
     writeMatrix(ws, result.matrix, result.rowMeta, options, currentRow);
@@ -64,16 +65,16 @@ function writeMatrix(ws, matrix, rowMeta, options, startRow) {
 
       if (meta.isProbablyHeader) {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = solid('071A33');
+        cell.fill = solid('0B3D4A');
       } else if (meta.isTitle) {
-        cell.font = { bold: true, color: { argb: 'FF071A33' }, size: Math.max(11, Math.min(15, meta.maxFontSize || 12)) };
-        cell.fill = solid('EAF1FA');
+        cell.font = { bold: true, color: { argb: 'FF08323D' }, size: Math.max(11, Math.min(15, meta.maxFontSize || 12)) };
+        cell.fill = solid('EAF4F6');
       } else {
         const cm = meta.cellMeta?.[c] || {};
         cell.font = {
           bold: Boolean(meta.isBold || cm.bold),
           italic: Boolean(meta.isItalic || cm.italic),
-          color: { argb: 'FF152238' },
+          color: { argb: 'FF17282E' },
           size: Math.max(9, Math.min(13, cm.fontSize || meta.maxFontSize || 10)),
         };
       }
@@ -134,7 +135,7 @@ function addDiagnosticsWorksheet(workbook, results) {
   ];
 
   ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  ws.getRow(1).fill = solid('071A33');
+  ws.getRow(1).fill = solid('0B3D4A');
 
   for (const result of results) {
     const d = result.diagnostics;
@@ -156,10 +157,10 @@ function addDiagnosticsWorksheet(workbook, results) {
 
 function thinBorder() {
   return {
-    top: { style: 'thin', color: { argb: 'FFE1E8F0' } },
-    left: { style: 'thin', color: { argb: 'FFE1E8F0' } },
-    bottom: { style: 'thin', color: { argb: 'FFE1E8F0' } },
-    right: { style: 'thin', color: { argb: 'FFE1E8F0' } },
+    top: { style: 'thin', color: { argb: 'FFD6E1E5' } },
+    left: { style: 'thin', color: { argb: 'FFD6E1E5' } },
+    bottom: { style: 'thin', color: { argb: 'FFD6E1E5' } },
+    right: { style: 'thin', color: { argb: 'FFD6E1E5' } },
   };
 }
 
