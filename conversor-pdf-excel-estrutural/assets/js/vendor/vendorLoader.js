@@ -1,0 +1,134 @@
+const HTTPS = 'https:' + '//';
+
+const LOCAL = Object.freeze({
+  pdf: 'assets/js/vendor/pdf.min.js',
+  pdfWorker: 'assets/js/vendor/pdf.worker.min.js',
+  excel: 'assets/js/vendor/exceljs.min.js',
+  zip: 'assets/js/vendor/zip-full.min.js',
+});
+
+const CDN = Object.freeze({
+  pdf: HTTPS + 'cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  pdfWorker: HTTPS + 'cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  excel: HTTPS + 'cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+  zip: HTTPS + 'cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.57/dist/zip-full.min.js',
+});
+
+const loadedScripts = new Map();
+
+export async function ensurePdfJsRuntime() {
+  const result = await loadWithFallback({
+    name: 'pdf.js',
+    localSrc: LOCAL.pdf,
+    remoteSrc: CDN.pdf,
+    isReady: () => Boolean(window.pdfjsLib),
+  });
+
+  const workerSrc = await chooseWorkerSrc(result.source);
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+
+  return {
+    library: 'pdf.js',
+    source: result.source,
+    workerSrc,
+  };
+}
+
+export async function ensureExcelJsRuntime() {
+  return loadWithFallback({
+    name: 'ExcelJS',
+    localSrc: LOCAL.excel,
+    remoteSrc: CDN.excel,
+    isReady: () => Boolean(window.ExcelJS),
+  });
+}
+
+export async function ensureZipJsRuntime() {
+  return loadWithFallback({
+    name: 'zip.js',
+    localSrc: LOCAL.zip,
+    remoteSrc: CDN.zip,
+    isReady: () => Boolean(window.zip),
+  });
+}
+
+export async function checkRuntimeLibraries() {
+  const results = [];
+  results.push(await ensurePdfJsRuntime());
+  results.push(await ensureExcelJsRuntime());
+  results.push(await ensureZipJsRuntime());
+  return results;
+}
+
+async function loadWithFallback({ name, localSrc, remoteSrc, isReady }) {
+  if (isReady()) return { library: name, source: 'already-loaded' };
+
+  try {
+    await loadScript(localSrc, `${name}:local`);
+    if (isReady()) return { library: name, source: 'local' };
+  } catch (localError) {
+    console.warn(`${name} local não carregou. Tentando CDN.`, localError);
+  }
+
+  try {
+    await loadScript(remoteSrc, `${name}:cdn`);
+    if (isReady()) return { library: name, source: 'cdn' };
+  } catch (remoteError) {
+    console.error(`${name} não carregou pela CDN.`, remoteError);
+  }
+
+  throw new Error(
+    `Não foi possível carregar ${name}. Execute BAIXAR_BIBLIOTECAS_WINDOWS.bat ou verifique sua conexão para uso via Live Preview.`
+  );
+}
+
+function loadScript(src, key) {
+  if (loadedScripts.has(key)) return loadedScripts.get(key);
+
+  const existing = document.querySelector(`script[data-vendor-key="${cssEscape(key)}"]`);
+  if (existing?.dataset.loaded === 'true') return Promise.resolve();
+
+  const promise = new Promise((resolve, reject) => {
+    const script = existing || document.createElement('script');
+    script.src = src;
+    script.async = false;
+    script.defer = false;
+    script.dataset.vendorKey = key;
+
+    script.addEventListener('load', () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    }, { once: true });
+
+    script.addEventListener('error', () => {
+      reject(new Error(`Falha ao carregar script: ${src}`));
+    }, { once: true });
+
+    if (!existing) document.head.appendChild(script);
+  });
+
+  loadedScripts.set(key, promise);
+  return promise;
+}
+
+async function chooseWorkerSrc(source) {
+  if (source === 'local' || source === 'already-loaded') {
+    const localWorkerAvailable = await urlExists(LOCAL.pdfWorker);
+    if (localWorkerAvailable) return LOCAL.pdfWorker;
+  }
+  return CDN.pdfWorker;
+}
+
+async function urlExists(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function cssEscape(value) {
+  if (window.CSS?.escape) return window.CSS.escape(value);
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, '_');
+}
