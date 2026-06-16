@@ -1,5 +1,13 @@
 import { $, $all } from '../utils/dom.js';
 import { parsePageSpec } from '../utils/pages.js';
+import {
+  buildDefaultPageSpec,
+  formatPageList,
+  normalizeSpecText,
+  selectionSummary,
+  shouldApplyDefaultPageSpec,
+} from '../utils/pageSelection.js';
+import { runPageSelectionSelfTest } from '../utils/pageSelection.test.js';
 import { downloadBlob } from '../utils/download.js';
 import { loadPdfDocument, extractPageTextItems } from '../pdf/pdfLoader.js';
 import { extractStructuredPage } from '../extraction/tableExtractor.js';
@@ -15,6 +23,8 @@ export class AppController {
     this.file = null;
     this.pdf = null;
     this.results = [];
+    this.userEditedPageSpec = false;
+    this.lastAutoPageSpec = '';
     this.status = new StatusView();
     this.preview = $('#preview');
     this.testOutput = document.querySelector('#testOutput');
@@ -23,6 +33,7 @@ export class AppController {
     this.bindEvents();
     this.bindTabs();
     this.bindTests();
+    this.updatePageSelectionInfo();
   }
 
   bindElements() {
@@ -30,6 +41,8 @@ export class AppController {
     this.pdfInput = $('#pdfInput');
     this.selectPdfBtn = $('#selectPdfBtn');
     this.fileName = $('#fileName');
+    this.pageSpecInput = $('#pageSpec');
+    this.pageSelectionInfo = document.querySelector('#pageSelectionInfo');
     this.processBtn = $('#processBtn');
     this.exportXlsxBtn = $('#exportXlsxBtn');
     this.exportZipBtn = $('#exportZipBtn');
@@ -42,6 +55,16 @@ export class AppController {
       this.pdfInput.click();
     });
     this.pdfInput.addEventListener('change', event => this.setFile(event.target.files?.[0]));
+
+    this.pageSpecInput.addEventListener('input', () => {
+      this.userEditedPageSpec = true;
+      this.updatePageSelectionInfo();
+    });
+
+    this.pageSpecInput.addEventListener('blur', () => {
+      this.pageSpecInput.value = normalizeSpecText(this.pageSpecInput.value);
+      this.updatePageSelectionInfo();
+    });
 
     this.dropZone.addEventListener('dragover', event => {
       event.preventDefault();
@@ -97,19 +120,37 @@ export class AppController {
     try {
       this.status.set('Carregando PDF...', 8);
       this.pdf = await loadPdfDocument(file);
-      $('#pageSpec').placeholder = `Ex.: 1-${Math.min(3, this.pdf.numPages)}, 5`;
-      $('#pageSpec').value = this.pdf.numPages === 1 ? '1' : `1-${this.pdf.numPages}`;
-      this.status.set(`PDF carregado: ${this.pdf.numPages} página(s).`, 100);
+      this.pageSpecInput.placeholder = `Ex.: 1-${Math.min(3, this.pdf.numPages)}, 5`;
+      this.applyDefaultPageSpecOnlyWhenSafe();
+      this.updatePageSelectionInfo();
+      this.status.set(`PDF carregado: ${this.pdf.numPages} página(s). ${this.currentSelectionSummary()}`, 100);
     } catch (error) {
       console.error(error);
       this.status.set(`Erro ao carregar PDF: ${error.message}`, 0);
     }
   }
 
+  applyDefaultPageSpecOnlyWhenSafe() {
+    if (!this.pdf) return;
+
+    const defaultSpec = buildDefaultPageSpec(this.pdf.numPages);
+    const canApplyDefault = shouldApplyDefaultPageSpec({
+      currentValue: this.pageSpecInput.value,
+      lastAutoValue: this.lastAutoPageSpec,
+      userEdited: this.userEditedPageSpec,
+    });
+
+    if (canApplyDefault) {
+      this.pageSpecInput.value = defaultSpec;
+      this.lastAutoPageSpec = defaultSpec;
+      this.userEditedPageSpec = false;
+    }
+  }
+
   getSettings() {
     return {
       ...DEFAULT_SETTINGS,
-      pageSpec: $('#pageSpec').value,
+      pageSpec: normalizeSpecText(this.pageSpecInput.value),
       mode: $('#mode').value,
       rowTolerance: Number($('#rowTolerance').value),
       columnTolerance: Number($('#columnTolerance').value),
@@ -117,6 +158,28 @@ export class AppController {
       sheetPerPage: $('#sheetPerPage').checked,
       mergeTitles: $('#mergeTitles').checked,
     };
+  }
+
+  resolveSelectedPages(settings = this.getSettings()) {
+    if (!this.pdf) throw new Error('Nenhum PDF foi carregado.');
+    return parsePageSpec(settings.pageSpec, this.pdf.numPages);
+  }
+
+  currentSelectionSummary() {
+    if (!this.pdf) return 'Selecione um PDF para validar o intervalo de páginas.';
+    try {
+      const pages = this.resolveSelectedPages();
+      return selectionSummary(pages, this.pdf.numPages);
+    } catch (error) {
+      return error.message;
+    }
+  }
+
+  updatePageSelectionInfo() {
+    if (!this.pageSelectionInfo) return;
+    const summary = this.currentSelectionSummary();
+    this.pageSelectionInfo.textContent = summary;
+    this.pageSelectionInfo.dataset.state = summary.includes('fora do intervalo') || summary.includes('inválido') ? 'error' : 'ok';
   }
 
   async process() {
@@ -128,14 +191,16 @@ export class AppController {
     try {
       if (!this.pdf) {
         this.pdf = await loadPdfDocument(this.file);
+        this.applyDefaultPageSpecOnlyWhenSafe();
       }
 
       const settings = this.getSettings();
       let pages;
       try {
-        pages = parsePageSpec(settings.pageSpec, this.pdf.numPages);
+        pages = this.resolveSelectedPages(settings);
       } catch (error) {
         this.status.set(error.message, 0);
+        this.updatePageSelectionInfo();
         return;
       }
 
@@ -144,10 +209,15 @@ export class AppController {
       this.exportZipBtn.disabled = true;
       renderPreview(this.preview, []);
 
+      const summary = selectionSummary(pages, this.pdf.numPages);
+      this.updatePageSelectionInfo();
+      this.status.set(`Processando seleção: ${summary}`, 1);
+      this.writeTest(`SELEÇÃO USADA NO PROCESSAMENTO\n${summary}\nLista interna: [${formatPageList(pages, 200)}]`, true);
+
       for (let i = 0; i < pages.length; i++) {
         const pageNumber = pages[i];
         const progressBase = Math.round((i / pages.length) * 90);
-        this.status.set(`Extraindo estrutura da página ${pageNumber}...`, progressBase);
+        this.status.set(`Extraindo página selecionada ${pageNumber} (${i + 1}/${pages.length})...`, progressBase);
         const pageData = await extractPageTextItems(this.pdf, pageNumber);
         const result = extractStructuredPage(pageData, settings);
         this.results.push(result);
@@ -156,7 +226,7 @@ export class AppController {
 
       renderPreview(this.preview, this.results, settings);
       this.status.showMetrics(this.results, this.pdf.numPages);
-      this.status.set('Processamento concluído. Confira a prévia e exporte.', 100);
+      this.status.set(`Processamento concluído. ${summary}`, 100);
       this.exportXlsxBtn.disabled = false;
       this.exportZipBtn.disabled = false;
     } catch (error) {
@@ -213,7 +283,15 @@ export class AppController {
       if (result.join(',') !== expected) {
         throw new Error(`Resultado inesperado: ${result.join(',')}`);
       }
-      this.writeTest(`OK: seleção "1-3, 5, 3" resultou em [${result.join(', ')}].`, true);
+
+      const selectionTest = runPageSelectionSelfTest();
+
+      this.writeTest([
+        `OK: seleção "1-3, 5, 3" resultou em [${result.join(', ')}].`,
+        `OK: seleção "2, 4-5" resultou em [${selectionTest.selected.join(', ')}].`,
+        `OK: ${selectionTest.summary}`,
+        'OK: seleção manual não é mais sobrescrita pelo padrão 1-total.',
+      ].join('\n'), true);
     } catch (error) {
       console.error(error);
       this.writeTest(`ERRO: ${error.message}`, true);
