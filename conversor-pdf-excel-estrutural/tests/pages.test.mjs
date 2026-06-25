@@ -8,10 +8,11 @@ import {
 
 assert.deepEqual(parsePageSpec('', 3), [1, 2, 3]);
 assert.deepEqual(parsePageSpec('1-3, 5, 3', 6), [1, 2, 3, 5]);
-assert.deepEqual(parsePageSpec('4-2', 5), [2, 3, 4]);
 assert.deepEqual(parsePageSpec('2, 4-5', 10), [2, 4, 5]);
-assert.throws(() => parsePageSpec('0', 5), /fora do intervalo/);
-assert.throws(() => parsePageSpec('abc', 5), /Trecho inválido/);
+assert.throws(() => parsePageSpec('0', 5), /fora do intervalo/i);
+assert.throws(() => parsePageSpec('6', 5), /fora do intervalo/i);
+assert.throws(() => parsePageSpec('5-3', 6), /invertido/i);
+assert.throws(() => parsePageSpec('abc', 5), /invalido/i);
 
 assert.equal(buildDefaultPageSpec(10), '1-10');
 assert.equal(

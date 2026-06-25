@@ -5,6 +5,7 @@ const LOCAL = Object.freeze({
   pdfWorker: 'assets/js/vendor/pdf.worker.min.js',
   excel: 'assets/js/vendor/exceljs.min.js',
   zip: 'assets/js/vendor/zip-full.min.js',
+  xlsx: 'assets/js/vendor/xlsx.full.min.js',
 });
 
 const CDN = Object.freeze({
@@ -12,6 +13,7 @@ const CDN = Object.freeze({
   pdfWorker: HTTPS + 'cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
   excel: HTTPS + 'cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
   zip: HTTPS + 'cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.57/dist/zip-full.min.js',
+  xlsx: HTTPS + 'cdn.jsdelivr.net/npm/xlsx@0.20.3/dist/xlsx.full.min.js',
 });
 
 const loadedScripts = new Map();
@@ -52,11 +54,21 @@ export async function ensureZipJsRuntime() {
   });
 }
 
+export async function ensureSheetJsRuntime() {
+  return loadWithFallback({
+    name: 'SheetJS',
+    localSrc: LOCAL.xlsx,
+    remoteSrc: CDN.xlsx,
+    isReady: () => Boolean(window.XLSX),
+  });
+}
+
 export async function checkRuntimeLibraries() {
   const results = [];
   results.push(await ensurePdfJsRuntime());
   results.push(await ensureExcelJsRuntime());
   results.push(await ensureZipJsRuntime());
+  results.push(await ensureSheetJsRuntime());
   return results;
 }
 
@@ -67,19 +79,17 @@ async function loadWithFallback({ name, localSrc, remoteSrc, isReady }) {
     await loadScript(localSrc, `${name}:local`);
     if (isReady()) return { library: name, source: 'local' };
   } catch (localError) {
-    console.warn(`${name} local não carregou. Tentando CDN.`, localError);
+    console.warn(`${name} local nao carregou. Tentando CDN.`, localError);
   }
 
   try {
     await loadScript(remoteSrc, `${name}:cdn`);
     if (isReady()) return { library: name, source: 'cdn' };
   } catch (remoteError) {
-    console.error(`${name} não carregou pela CDN.`, remoteError);
+    console.error(`${name} nao carregou pela CDN.`, remoteError);
   }
 
-  throw new Error(
-    `Não foi possível carregar ${name}. Execute BAIXAR_BIBLIOTECAS_WINDOWS.bat ou verifique sua conexão para uso via Live Preview.`
-  );
+  throw new Error(`Nao foi possivel carregar ${name}. Execute BAIXAR_BIBLIOTECAS_WINDOWS.bat ou verifique sua conexao.`);
 }
 
 function loadScript(src, key) {

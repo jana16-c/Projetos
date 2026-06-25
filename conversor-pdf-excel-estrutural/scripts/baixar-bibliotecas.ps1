@@ -20,6 +20,10 @@ $arquivos = @(
   @{
     Nome = "zip-full.min.js"
     Url = "https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.57/dist/zip-full.min.js"
+  },
+  @{
+    Nome = "xlsx.full.min.js"
+    Url = "https://cdn.jsdelivr.net/npm/xlsx@0.20.3/dist/xlsx.full.min.js"
   }
 )
 

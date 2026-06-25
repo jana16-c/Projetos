@@ -1,4 +1,4 @@
-import { median, percentile, cellLooksNumeric } from './geometry.js';
+import { cellLooksNumeric, median, percentile } from './geometry.js';
 
 export function buildColumnModel(rows, pageWidth, settings) {
   const segments = rows.flatMap(row => row.segments.map(segment => ({ ...segment, rowIndex: row.index })));
@@ -12,18 +12,18 @@ export function buildColumnModel(rows, pageWidth, settings) {
 }
 
 function emptyModel() {
-  return { anchors: [], columnCount: 0, confidence: 0, warnings: ['Nenhum texto detectado na página.'] };
+  return { anchors: [], columnCount: 0, confidence: 0, warnings: ['Nenhum texto detectado na pagina.'] };
 }
 
 function buildStructuralModel(segments, rows, pageWidth, settings) {
   const tolerance = Number(settings.columnTolerance || 9);
-  const clusters = clusterPositions(segments.map(s => s.x), tolerance);
-  const minSupport = Math.max(2, Math.ceil(rows.length * 0.06));
+  const clusters = clusterPositions(segments.map(segment => segment.x), tolerance);
+  const minSupport = Math.max(2, Math.ceil(rows.length * 0.12));
 
   let anchors = clusters
-    .filter(c => c.count >= minSupport || c.hasNumeric || c.widthScore > 90)
-    .map(c => ({ x: c.center, support: c.count, score: c.score }))
-    .sort((a, b) => a.x - b.x);
+    .filter(cluster => cluster.count >= minSupport || cluster.widthScore > 90)
+    .map(cluster => ({ x: cluster.center, support: cluster.count, score: cluster.score }))
+    .sort((left, right) => left.x - right.x);
 
   anchors = removeNearDuplicateAnchors(anchors, Math.max(3, tolerance * 0.75));
 
@@ -31,52 +31,60 @@ function buildStructuralModel(segments, rows, pageWidth, settings) {
     anchors = fallbackAnchorsFromRows(rows, tolerance);
   }
 
+  if (anchors.length > 24) anchors = anchors.slice(0, 24);
+
   const densityScore = Math.min(1, segments.length / Math.max(1, rows.length * Math.max(1, anchors.length)));
-  const supportScore = anchors.length ? Math.min(1, median(anchors.map(a => a.support), 0) / Math.max(2, rows.length * 0.18)) : 0;
-  const confidence = Math.round((0.45 + densityScore * 0.25 + supportScore * 0.30) * 100) / 100;
+  const supportScore = anchors.length
+    ? Math.min(1, median(anchors.map(anchor => anchor.support), 0) / Math.max(2, rows.length * 0.18))
+    : 0;
+  const confidence = Math.round((0.42 + (densityScore * 0.25) + (supportScore * 0.33)) * 100) / 100;
 
   const warnings = [];
-  if (anchors.length <= 1) warnings.push('Poucas colunas detectadas. Talvez a página não contenha tabela ou precise do modo grade visual.');
-  if (confidence < 0.62) warnings.push('Confiança estrutural moderada. Confira a prévia e ajuste tolerâncias se necessário.');
+  if (anchors.length <= 1) warnings.push('Poucas colunas detectadas. Talvez a pagina nao contenha tabela ou precise do modo grade visual.');
+  if (confidence < 0.62) warnings.push('Confianca estrutural moderada. Confira a previa e ajuste tolerancias se necessario.');
 
   return { anchors, columnCount: anchors.length, confidence: Math.min(1, confidence), warnings };
 }
 
 function buildVisualGridModel(segments, rows, pageWidth, settings) {
   const tolerance = Number(settings.columnTolerance || 9);
-  const left = Math.max(0, percentile(segments.map(s => s.x), 0.02, 0));
-  const right = Math.min(pageWidth, percentile(segments.map(s => s.right), 0.98, pageWidth));
-  const typicalWidth = median(segments.map(s => s.width), 60);
+  const left = Math.max(0, percentile(segments.map(segment => segment.x), 0.02, 0));
+  const right = Math.min(pageWidth, percentile(segments.map(segment => segment.right), 0.98, pageWidth));
+  const typicalWidth = median(segments.map(segment => segment.width), 60);
   const step = Math.max(28, Math.min(90, typicalWidth * 0.9, tolerance * 5));
   const anchors = [];
-  for (let x = left; x <= right; x += step) anchors.push({ x, support: 1, score: 1 });
+
+  for (let x = left; x <= right; x += step) {
+    anchors.push({ x, support: 1, score: 1 });
+  }
 
   return {
     anchors,
     columnCount: anchors.length,
-    confidence: 0.70,
-    warnings: ['Modo grade visual usado: preserva posição, mas pode criar mais colunas vazias.'],
+    confidence: 0.7,
+    warnings: ['Modo grade visual usado: preserva posicao, mas pode criar mais colunas vazias.'],
   };
 }
 
 function clusterPositions(positions, tolerance) {
-  const sorted = positions.filter(Number.isFinite).sort((a, b) => a - b);
+  const sorted = positions.filter(Number.isFinite).sort((left, right) => left - right);
   const clusters = [];
 
   for (const x of sorted) {
-    let cluster = clusters.find(c => Math.abs(c.center - x) <= tolerance);
+    let cluster = clusters.find(item => Math.abs(item.center - x) <= tolerance);
     if (!cluster) {
-      cluster = { values: [], center: x, count: 0, hasNumeric: false, widthScore: 0, score: 0 };
+      cluster = { values: [], center: x, count: 0, widthScore: 0, score: 0 };
       clusters.push(cluster);
     }
+
     cluster.values.push(x);
     cluster.count += 1;
     cluster.center = median(cluster.values, x);
   }
 
-  for (const c of clusters) {
-    c.score = c.count / Math.max(1, clusters.length);
-    c.widthScore = c.values.length ? Math.max(...c.values) - Math.min(...c.values) : 0;
+  for (const cluster of clusters) {
+    cluster.score = cluster.count / Math.max(1, clusters.length);
+    cluster.widthScore = cluster.values.length ? Math.max(...cluster.values) - Math.min(...cluster.values) : 0;
   }
 
   return clusters;
@@ -98,90 +106,142 @@ function removeNearDuplicateAnchors(anchors, minDistance) {
 function fallbackAnchorsFromRows(rows, tolerance) {
   const candidateRows = rows
     .filter(row => row.segments.length >= 2)
-    .sort((a, b) => b.segments.length - a.segments.length);
+    .sort((left, right) => right.segments.length - left.segments.length);
 
   const positions = [];
   for (const row of candidateRows.slice(0, 8)) {
-    positions.push(...row.segments.map(s => s.x));
+    positions.push(...row.segments.map(segment => segment.x));
   }
 
   return removeNearDuplicateAnchors(
-    clusterPositions(positions, tolerance).map(c => ({ x: c.center, support: c.count, score: c.score })).sort((a, b) => a.x - b.x),
+    clusterPositions(positions, tolerance)
+      .map(cluster => ({ x: cluster.center, support: cluster.count, score: cluster.score }))
+      .sort((left, right) => left.x - right.x),
     tolerance * 0.8,
   );
 }
 
-export function rowsToMatrix(rows, columnModel, settings) {
+export function rowsToMatrix(rows, columnModel) {
   const anchors = columnModel.anchors;
-  if (!anchors.length) return rows.map(row => [row.text]);
+  if (!anchors.length) {
+    const matrix = rows.map(row => [row.text]);
+    const rowMeta = rows.map(row => ({
+      y: row.y,
+      isBold: row.isBold,
+      isItalic: row.isItalic,
+      maxFontSize: row.maxFontSize,
+      sourceText: row.text,
+      cellMeta: [{
+        bold: row.isBold,
+        italic: row.isItalic,
+        fontSize: row.maxFontSize,
+        x: row.xStart,
+        sourcePage: row.items[0]?.pageNumber || 0,
+        sourceItemIds: row.items.map(item => item.id),
+      }],
+      isTitle: isTitleRow(row, [row.text]),
+      isProbablyHeader: isProbablyHeader([row.text]),
+    }));
+    const cells = rows.map(row => [{
+      value: row.text,
+      sourcePage: row.items[0]?.pageNumber || 0,
+      sourceItemIds: row.items.map(item => item.id),
+      x: row.xStart,
+      y: row.y,
+      confidence: columnModel.confidence,
+    }]);
+
+    return { matrix, rowMeta, cells };
+  }
 
   const matrix = [];
   const rowMeta = [];
+  const cellModels = [];
 
   for (const row of rows) {
-    const cells = Array.from({ length: anchors.length }, () => '');
-    const cellMeta = Array.from({ length: anchors.length }, () => ({ bold: false, italic: false, fontSize: 0, x: 0 }));
+    const rowCells = Array.from({ length: anchors.length }, () => '');
+    const meta = Array.from({ length: anchors.length }, () => ({ bold: false, italic: false, fontSize: 0, x: 0 }));
+    const model = Array.from({ length: anchors.length }, () => ({
+      value: '',
+      sourcePage: row.items[0]?.pageNumber || 0,
+      sourceItemIds: [],
+      x: 0,
+      y: row.y,
+      confidence: columnModel.confidence,
+    }));
 
     for (const segment of row.segments) {
-      const col = findNearestAnchorIndex(segment.x, anchors);
-      if (col < 0) continue;
-      const existing = cells[col];
-      cells[col] = existing ? `${existing} ${segment.text}`.replace(/\s+/g, ' ').trim() : segment.text;
-      cellMeta[col].bold = cellMeta[col].bold || segment.isBold;
-      cellMeta[col].italic = cellMeta[col].italic || segment.isItalic;
-      cellMeta[col].fontSize = Math.max(cellMeta[col].fontSize, segment.fontSize || 0);
-      cellMeta[col].x = segment.x;
+      const columnIndex = findNearestAnchorIndex(segment.x, anchors);
+      if (columnIndex < 0) continue;
+
+      const existing = rowCells[columnIndex];
+      rowCells[columnIndex] = existing
+        ? `${existing} ${segment.text}`.replace(/\s+/g, ' ').trim()
+        : segment.text;
+
+      meta[columnIndex].bold = meta[columnIndex].bold || segment.isBold;
+      meta[columnIndex].italic = meta[columnIndex].italic || segment.isItalic;
+      meta[columnIndex].fontSize = Math.max(meta[columnIndex].fontSize, segment.fontSize || 0);
+      meta[columnIndex].x = segment.x;
+      meta[columnIndex].sourcePage = row.items[0]?.pageNumber || 0;
+      meta[columnIndex].sourceItemIds = segment.rawItems.map(item => item.id);
+
+      model[columnIndex].value = rowCells[columnIndex];
+      model[columnIndex].sourceItemIds = [...new Set([...model[columnIndex].sourceItemIds, ...segment.rawItems.map(item => item.id)])];
+      model[columnIndex].x = segment.x;
     }
 
-    trimTrailingEmpty(cells, cellMeta);
-    matrix.push(cells);
+    trimTrailingEmpty(rowCells, meta, model);
+    matrix.push(rowCells);
     rowMeta.push({
       y: row.y,
       isBold: row.isBold,
       isItalic: row.isItalic,
       maxFontSize: row.maxFontSize,
       sourceText: row.text,
-      cellMeta,
-      isTitle: isTitleRow(row, cells),
-      isProbablyHeader: isProbablyHeader(cells),
+      cellMeta: meta,
+      isTitle: isTitleRow(row, rowCells),
+      isProbablyHeader: isProbablyHeader(rowCells),
     });
+    cellModels.push(model);
   }
 
-  return { matrix, rowMeta };
+  return { matrix, rowMeta, cells: cellModels };
 }
 
 function findNearestAnchorIndex(x, anchors) {
   let best = -1;
-  let dist = Infinity;
-  for (let i = 0; i < anchors.length; i++) {
-    const d = Math.abs(anchors[i].x - x);
-    if (d < dist) {
-      best = i;
-      dist = d;
+  let distance = Infinity;
+  for (let index = 0; index < anchors.length; index++) {
+    const currentDistance = Math.abs(anchors[index].x - x);
+    if (currentDistance < distance) {
+      best = index;
+      distance = currentDistance;
     }
   }
   return best;
 }
 
-function trimTrailingEmpty(cells, meta) {
+function trimTrailingEmpty(cells, meta, models) {
   while (cells.length > 1 && !String(cells[cells.length - 1] || '').trim()) {
     cells.pop();
     meta.pop();
+    models.pop();
   }
 }
 
 function isTitleRow(row, cells) {
-  const nonEmpty = cells.filter(c => String(c || '').trim()).length;
+  const nonEmpty = cells.filter(cell => String(cell || '').trim()).length;
   return nonEmpty === 1 && (row.isBold || row.maxFontSize >= 11.5 || row.text.length > 25);
 }
 
 function isProbablyHeader(cells) {
-  const filled = cells.filter(c => String(c || '').trim());
+  const filled = cells.filter(cell => String(cell || '').trim());
   if (filled.length < 2) return false;
   const numeric = filled.filter(cellLooksNumeric).length;
-  const uppercaseish = filled.filter(v => {
-    const s = String(v).trim();
-    return s.length >= 2 && s === s.toUpperCase();
+  const uppercaseish = filled.filter(value => {
+    const text = String(value).trim();
+    return text.length >= 2 && text === text.toUpperCase();
   }).length;
   return numeric === 0 && uppercaseish >= Math.ceil(filled.length * 0.45);
 }

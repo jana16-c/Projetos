@@ -13,6 +13,10 @@ export async function loadPdfDocument(file) {
 }
 
 export async function extractPageTextItems(pdf, pageNumber) {
+  return extractPageTextItemsWithOptions(pdf, pageNumber, {});
+}
+
+export async function extractPageTextItemsWithOptions(pdf, pageNumber, options = {}) {
   const page = await pdf.getPage(pageNumber);
   const viewport = page.getViewport({ scale: 1 });
   const textContent = await page.getTextContent({
@@ -21,15 +25,20 @@ export async function extractPageTextItems(pdf, pageNumber) {
     includeMarkedContent: true,
   });
 
-  const items = textContent.items
+  const allItems = textContent.items
     .filter(item => item && typeof item.str === 'string' && item.str.trim())
     .map((item, index) => normalizeTextItem(item, index, pageNumber, viewport));
+
+  const items = filterItemsByMargins(allItems, viewport, options.ignoreMargins);
 
   return {
     pageNumber,
     width: viewport.width,
     height: viewport.height,
+    allItems,
     items,
+    textLayerDetected: allItems.length >= 3,
+    ignoredMargins: normalizeMargins(options.ignoreMargins),
   };
 }
 
@@ -70,4 +79,36 @@ function cleanPdfText(text) {
 
 function estimateWidth(text, fontSize) {
   return String(text || '').length * fontSize * 0.48;
+}
+
+function filterItemsByMargins(items, viewport, margins) {
+  const normalized = normalizeMargins(margins);
+  if (!items.length) return items;
+
+  const left = viewport.width * normalized.left;
+  const right = viewport.width * (1 - normalized.right);
+  const top = viewport.height * normalized.top;
+  const bottom = viewport.height * (1 - normalized.bottom);
+
+  return items.filter(item => (
+    item.x >= left
+    && item.right <= right
+    && item.y >= top
+    && item.bottom <= bottom
+  ));
+}
+
+function normalizeMargins(margins = {}) {
+  return {
+    top: clampPercent(margins.top, 0, 0.3),
+    bottom: clampPercent(margins.bottom, 0, 0.3),
+    left: clampPercent(margins.left, 0, 0.2),
+    right: clampPercent(margins.right, 0, 0.2),
+  };
+}
+
+function clampPercent(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
 }

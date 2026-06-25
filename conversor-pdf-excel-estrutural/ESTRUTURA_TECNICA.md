@@ -1,55 +1,50 @@
-# Estrutura técnica
+# Estrutura tecnica
 
-## Fluxo principal
+## Fluxo
 
-1. `main.js` inicializa o controlador.
-2. `ui/appController.js` gerencia seleção de arquivo, opções, processamento e exportação.
-3. `pdf/pdfLoader.js` carrega o PDF via pdf.js e extrai `textContent` de cada página.
-4. `extraction/tableExtractor.js` coordena a reconstrução estrutural.
-5. `extraction/rows.js` agrupa itens por linha visual.
-6. `extraction/columns.js` detecta âncoras verticais e monta células.
-7. `export/workbookBuilder.js` gera Excel com ExcelJS.
-8. `export/zipBuilder.js` empacota Excel, CSVs e JSON técnico com zip.js.
+1. `main.js` inicializa `AppController`.
+2. `ui/appController.js` controla upload, opcoes, processamento, edicao e exportacao.
+3. `pdf/pdfLoader.js` le cada pagina com `pdf.js`, normaliza coordenadas e aplica margens ignoradas.
+4. `extraction/tableExtractor.js` monta o resultado do documento.
+5. `extraction/rows.js` reconstrói linhas por baseline.
+6. `extraction/tableBlocks.js` separa blocos tabulares na pagina.
+7. `extraction/columns.js` infere ancoras de coluna e monta a matriz.
+8. `extraction/headerSignature.js` detecta a assinatura do cabecalho.
+9. `extraction/tableContinuation.js` tenta unir tabelas consecutivas.
+10. `extraction/valueClassifier.js` tipa valores de forma conservadora.
+11. `ui/tableEditor.js` aplica alteracoes em memoria com undo por tabela.
+12. `export/workbookBuilder.js`, `export/xlsmTemplateBuilder.js` e `export/zipBuilder.js` geram as saidas finais.
 
-## Estratégia de extração
+## Modelo de saida
 
-A extração não é baseada em copiar texto puro. Ela usa a geometria da camada textual:
+O estado principal do processamento e um `DocumentExtractionResult` contendo:
 
-- posição X/Y de cada fragmento;
-- largura do fragmento;
-- altura/tamanho de fonte;
-- nome da fonte quando disponível;
-- distribuição das posições horizontais;
-- distância entre fragmentos.
+- arquivo de origem;
+- total de paginas e paginas selecionadas;
+- tabelas detectadas;
+- diagnostico por pagina;
+- configuracoes usadas;
+- alteracoes manuais;
+- data da extracao.
 
-O algoritmo reconstrói:
+Cada tabela preserva:
 
-- linhas por baseline;
-- fragmentos por proximidade;
-- colunas por clusters de alinhamento;
-- títulos/cabeçalhos por peso visual;
-- células vazias por lacunas entre âncoras.
+- `matrix` para exibicao e exportacao;
+- `cells` com metadados da origem e valor normalizado;
+- `rowMeta` com perfil visual das linhas;
+- `headerSignature`;
+- `sourcePages`;
+- `pageBreaks` para separar novamente tabelas unidas.
 
-## Modos
+## Testes
 
-### Estrutural inteligente
+Os testes Node cobrem:
 
-Usa clusters de X e repetição de alinhamento para inferir colunas consistentes. É o padrão.
-
-### Grade visual por posição
-
-Usa faixas horizontais por posição, preservando melhor o aspecto visual quando a estrutura da tabela é irregular.
-
-## Diagnóstico
-
-Cada página processada gera um objeto técnico com:
-
-- número da página;
-- quantidade de itens extraídos;
-- quantidade de linhas;
-- quantidade de colunas;
-- confiança estimada;
-- avisos;
-- parâmetros usados.
-
-Esse diagnóstico é exportado no ZIP e também em uma aba `_diagnostico` no Excel.
+- selecao de paginas;
+- agrupamento de linhas;
+- inferencia de colunas;
+- deteccao de blocos;
+- continuacao entre paginas;
+- classificacao de valores;
+- substituicao segura de abas `EXTRACAO_` no fluxo XLSM;
+- extracao fim a fim com fixture sintetica.

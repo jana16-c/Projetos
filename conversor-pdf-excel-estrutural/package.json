@@ -1,13 +1,15 @@
 {
   "name": "conversor-pdf-excel-estrutural",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Conversor local de PDF textual para Excel com extração estrutural por pdf.js.",
+  "description": "Conversor local de PDF textual para Excel com extracao estrutural, revisao manual e saida XLSX/XLSM/ZIP.",
   "scripts": {
     "start": "python server.py",
-    "test": "node tests/pages.test.mjs",
-    "check:syntax": "node --check assets/js/main.js"
+    "test": "node tests/run-all.mjs",
+    "test:pages": "node tests/pages.test.mjs",
+    "test:extraction": "node tests/extraction.test.mjs",
+    "check:syntax": "node scripts/check-syntax.mjs"
   },
   "dependencies": {}
 }

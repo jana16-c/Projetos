@@ -17,19 +17,22 @@ export class StatusView {
     this.bar.style.width = `${pct}%`;
   }
 
-  showMetrics(results, totalPages) {
+  showMetrics(documentResult) {
     clear(this.metrics);
-    if (!results?.length) return;
-    const pages = results.length;
-    const rows = results.reduce((acc, r) => acc + r.matrix.length, 0);
-    const cols = Math.max(...results.map(r => r.diagnostics.columns || 0), 0);
-    const confidence = Math.round(results.reduce((acc, r) => acc + (r.diagnostics.confidence || 0), 0) / pages * 100);
+    if (!documentResult?.tables?.length) return;
+
+    const pages = documentResult.selectedPages.length;
+    const tables = documentResult.tables.length;
+    const rows = documentResult.tables.reduce((acc, table) => acc + table.matrix.length, 0);
+    const columns = Math.max(...documentResult.tables.map(table => table.matrix[0]?.length || 0), 0);
+    const confidence = Math.round(documentResult.tables.reduce((acc, table) => acc + (table.confidence || 0), 0) / tables * 100);
 
     this.metrics.append(
-      metric(pages, 'páginas processadas'),
-      metric(rows, 'linhas reconstruídas'),
-      metric(cols, 'maior nº de colunas'),
-      metric(`${confidence}%`, 'confiança média'),
+      metric(pages, 'paginas lidas'),
+      metric(tables, 'tabelas detectadas'),
+      metric(rows, 'linhas editaveis'),
+      metric(columns, 'maior numero de colunas'),
+      metric(`${confidence}%`, 'confianca media'),
     );
   }
 }

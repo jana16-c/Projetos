@@ -1,27 +1,46 @@
-export function buildDiagnostics(pageData, rows, columnModel, matrix, settings) {
-  const warnings = [...(columnModel.warnings || [])];
+export function buildDiagnostics(pageAnalysis, settings) {
+  const warnings = [...(pageAnalysis.warnings || [])];
+  const codes = [];
 
-  if (!pageData.items.length) warnings.push('A página não retornou texto. Pode ser página escaneada ou imagem.');
-  if (rows.length && matrix.every(row => row.length <= 1)) warnings.push('A extração encontrou apenas uma coluna. Verifique se o PDF é tabela ou texto corrido.');
+  if (!pageAnalysis.textLayerDetected) {
+    warnings.push('Esta pagina parece ser uma imagem ou PDF escaneado. A versao atual requer uma camada de texto.');
+    codes.push({
+      code: 'PAGE_WITHOUT_TEXT_LAYER',
+      severity: 'warning',
+    });
+  }
 
   return {
-    pageNumber: pageData.pageNumber,
-    pageWidth: round(pageData.width),
-    pageHeight: round(pageData.height),
-    textItems: pageData.items.length,
-    rows: rows.length,
-    columns: columnModel.columnCount,
-    confidence: columnModel.confidence,
+    pageNumber: pageAnalysis.pageNumber,
+    pageWidth: round(pageAnalysis.width),
+    pageHeight: round(pageAnalysis.height),
+    textItems: pageAnalysis.items.length,
+    allTextItems: pageAnalysis.allItems?.length || pageAnalysis.items.length,
+    rows: pageAnalysis.rows.length,
+    hiddenRepeatedRows: pageAnalysis.hiddenRows.length,
+    tables: pageAnalysis.tables.length,
+    columns: Math.max(...pageAnalysis.tables.map(table => table.columnModel.columnCount || 0), 0),
+    confidence: roundConfidence(pageAnalysis.tables),
     warnings,
+    codes,
     settings: {
       mode: settings.mode,
       rowTolerance: Number(settings.rowTolerance),
       columnTolerance: Number(settings.columnTolerance),
       gapFactor: Number(settings.gapFactor),
+      ignoreTopPct: Number(settings.ignoreTopPct),
+      ignoreBottomPct: Number(settings.ignoreBottomPct),
+      ignoreLeftPct: Number(settings.ignoreLeftPct),
+      ignoreRightPct: Number(settings.ignoreRightPct),
     },
   };
 }
 
 function round(value) {
   return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function roundConfidence(tables) {
+  if (!tables.length) return 0;
+  return round(tables.reduce((acc, table) => acc + (table.confidence || 0), 0) / tables.length);
 }
