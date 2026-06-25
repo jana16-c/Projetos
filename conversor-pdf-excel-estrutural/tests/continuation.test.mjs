@@ -22,8 +22,8 @@ assert.equal(merged.pageBreaks[1].removedHeader?.rowIndex, 1);
 assert.deepEqual(merged.matrix[3], ['QUADRO GERAL']);
 
 const renderable = buildRenderableTable(merged);
-assert.equal(renderable.matrix.length, 6);
-assert.deepEqual(renderable.matrix[4], ['COMPETENCIA', 'EMPREGADO', 'CPF', 'DEVIDO']);
+assert.equal(renderable.matrix.length, 5);
+assert.deepEqual(renderable.matrix[4], ['02/2024', 'JOAO', '111.111.111-11', '1.500,00']);
 
 const incompatible = makeTable(3, ['codigo', 'valor'], [
   ['CODIGO', 'VALOR'],

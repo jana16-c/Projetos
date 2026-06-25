@@ -42,11 +42,10 @@ const table = {
 const renderable = buildRenderableTable(table);
 assert.deepEqual(renderable.matrix, [
   ['PERIODO', 'BASE', 'PAGO'],
-  ['PERIODO', 'BASE', 'PAGO'],
   ['01/2024', '100,00', '50,00'],
   ['02/2024', '200,00', '75,00'],
 ]);
-assert.equal(renderable.rowMeta[1].isRepeatedHeader, true);
+assert.equal(renderable.rowMeta[1].isRepeatedHeader, undefined);
 
 const widths = deriveColumnWidths(table, 3);
 assert.equal(widths.length, 3);

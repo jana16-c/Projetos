@@ -7,7 +7,7 @@ export function detectTableBlocks(rows, pageWidth) {
   const medianHeight = median(heights, 12);
   const blocks = [];
   let current = null;
-  let separatorBudget = 1;
+  let separatorBudget = 2;
   let nonTabularStreak = 0;
 
   for (const row of rows) {
@@ -22,7 +22,7 @@ export function detectTableBlocks(rows, pageWidth) {
     const verticalGap = Math.max(0, row.minY - current.lastMaxY);
     const gapBreak = verticalGap > medianHeight * 2.2;
 
-    if (gapBreak || nonTabularStreak >= 2) {
+    if (gapBreak || nonTabularStreak >= 3) {
       blocks.push(finalizeBlock(current));
       current = analysis.candidate ? startBlock(row, analysis) : null;
       separatorBudget = 1;
@@ -66,13 +66,19 @@ function analyzeRow(row, pageWidth) {
     ? clamp((row.xEnd - row.xStart) / Math.max(80, pageWidth * 0.55), 0, 1)
     : 0;
   const hasHeaderProfile = row.isBold && nonEmpty.length >= 2 && numericCount === 0;
+  const singleCellContinuation = nonEmpty.length === 1 && (
+    row.isBold
+    || numericCount === 1
+    || String(row.text || '').trim().length >= 18
+  );
 
-  const candidate = nonEmpty.length >= 2 || numericCount >= 2 || hasHeaderProfile;
+  const candidate = nonEmpty.length >= 2 || numericCount >= 2 || hasHeaderProfile || singleCellContinuation;
   const score = (
     (repeatedSpread * 0.3)
     + (clamp(nonEmpty.length / 6, 0, 1) * 0.25)
     + (clamp(numericCount / Math.max(1, nonEmpty.length), 0, 1) * 0.2)
     + (hasHeaderProfile ? 0.15 : 0)
+    + (singleCellContinuation ? 0.08 : 0)
     + (nonEmpty.length >= 3 ? 0.1 : 0)
   );
 
@@ -142,5 +148,5 @@ function finalizeBlock(block) {
 }
 
 function looksLikeSoftSeparator(row) {
-  return row.segments.length <= 1 && row.text.length <= 60;
+  return row.segments.length <= 1 && row.text.length <= 120;
 }

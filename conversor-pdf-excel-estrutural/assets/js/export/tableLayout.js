@@ -21,17 +21,6 @@ export function buildRenderableTable(table) {
     rowMeta.push(meta);
   };
 
-  const pushRemovedHeader = removedHeader => {
-    if (!removedHeader?.row) return;
-    const meta = cloneRowMeta(removedHeader.rowMeta);
-    meta.isHeader = true;
-    meta.isRepeatedHeader = true;
-    if (headerRowIndex < 0) headerRowIndex = matrix.length;
-    matrix.push([...(removedHeader.row || [])]);
-    cells.push(cloneCellRow(removedHeader.cells));
-    rowMeta.push(meta);
-  };
-
   for (const pageBreak of pageBreaks) {
     const segmentIndexes = [];
     for (let index = 0; index < pageBreak.rowCount; index++) {
@@ -39,16 +28,7 @@ export function buildRenderableTable(table) {
       if (logicalIndex >= sourceMatrix.length) break;
       segmentIndexes.push(logicalIndex);
     }
-
-    if (!pageBreak.removedHeader) {
-      segmentIndexes.forEach(pushLogicalRow);
-      continue;
-    }
-
-    const insertAt = clamp(pageBreak.removedHeader.rowIndex ?? 0, 0, segmentIndexes.length);
-    segmentIndexes.slice(0, insertAt).forEach(pushLogicalRow);
-    pushRemovedHeader(pageBreak.removedHeader);
-    segmentIndexes.slice(insertAt).forEach(pushLogicalRow);
+    segmentIndexes.forEach(pushLogicalRow);
   }
 
   if (!matrix.length) {

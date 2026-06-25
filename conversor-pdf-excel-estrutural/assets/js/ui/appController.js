@@ -160,7 +160,7 @@ export class AppController {
       this.applyDefaultPageSpecOnlyWhenSafe();
       this.updatePageSelectionInfo();
       this.fileDetails.textContent = `${formatBytes(file.size)} · ${this.pdf.numPages} pagina(s)`;
-      this.status.set('PDF carregado.', 100);
+      this.status.set('Pronto.', 100);
     } catch (error) {
       console.error(error);
       this.status.set(`Erro ao carregar PDF: ${error.message}`, 0);
@@ -259,13 +259,13 @@ export class AppController {
       if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = true;
       const summary = selectionSummary(pages, this.pdf.numPages);
       this.updatePageSelectionInfo();
-      this.status.set('Processando PDF...', 1);
+      this.status.set('Processando...', 1);
       this.writeTest(`SELECAO USADA NO PROCESSAMENTO\n${summary}\nLista interna: [${formatPageList(pages, 200)}]`, true);
 
       const pagesData = [];
       for (let index = 0; index < pages.length; index++) {
         const pageNumber = pages[index];
-        this.status.set(`Extraindo pagina ${pageNumber} de ${pages.length}...`, Math.round((index / pages.length) * 90));
+        this.status.set(`Processando ${index + 1}/${pages.length}...`, Math.round((index / pages.length) * 90));
         pagesData.push(await extractPageTextItemsWithOptions(this.pdf, pageNumber, {
           ignoreMargins: {
             top: settings.ignoreTopPct / 100,
@@ -284,7 +284,7 @@ export class AppController {
       });
 
       this.status.showMetrics(this.documentResult);
-      this.status.set('Processamento concluido.', 100);
+      this.status.set('Convertido.', 100);
       this.exportXlsxBtn.disabled = false;
       this.exportZipBtn.disabled = false;
       if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !this.templateFile;
@@ -301,10 +301,10 @@ export class AppController {
   async exportXlsx() {
     if (!this.documentResult) return;
     try {
-      this.status.set('Gerando XLSX...', 40);
+      this.status.set('Exportando...', 40);
       const result = await buildXlsxExport(this.documentResult);
       downloadBlob(result.blob, result.filename);
-      this.status.set('XLSX exportado.', 100);
+      this.status.set('Pronto!', 100);
     } catch (error) {
       console.error(error);
       this.status.set(`Erro ao exportar XLSX: ${error.message}`, 0);
@@ -314,10 +314,10 @@ export class AppController {
   async exportXlsm() {
     if (!this.documentResult) return;
     try {
-      this.status.set('Gerando XLSM...', 40);
+      this.status.set('Exportando...', 40);
       const result = await buildXlsmExport(this.documentResult, this.templateFile);
       downloadBlob(result.blob, result.filename);
-      this.status.set('XLSM exportado.', 100);
+      this.status.set('Pronto!', 100);
     } catch (error) {
       console.error(error);
       this.status.set(error.message, 0);
@@ -327,12 +327,12 @@ export class AppController {
   async exportZip() {
     if (!this.documentResult) return;
     try {
-      this.status.set('Gerando ZIP...', 40);
+      this.status.set('Exportando...', 40);
       const result = await buildZipExport(this.documentResult, this.templateFile, {
         includeXlsmInZip: this.documentResult.settings.includeXlsmInZip,
       });
       downloadBlob(result.blob, result.filename);
-      this.status.set('ZIP exportado.', 100);
+      this.status.set('Pronto!', 100);
     } catch (error) {
       console.error(error);
       this.status.set(`Erro ao exportar ZIP: ${error.message}`, 0);
@@ -393,7 +393,7 @@ export class AppController {
     this.exportXlsxBtn.disabled = true;
     this.exportZipBtn.disabled = true;
     if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !this.templateFile;
-    this.status.set('Aguardando PDF.', 0);
+    this.status.set('Pronto.', 0);
     this.updatePageSelectionInfo();
   }
 
