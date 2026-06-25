@@ -12,7 +12,6 @@ import { downloadBlob } from '../utils/download.js';
 import { loadPdfDocument, extractPageTextItemsWithOptions } from '../pdf/pdfLoader.js';
 import { extractDocumentTables } from '../extraction/tableExtractor.js';
 import { buildXlsxExport, buildXlsmExport, buildZipExport } from '../export/exportService.js';
-import { renderPreview } from './previewRenderer.js';
 import { StatusView } from './status.js';
 import { DEFAULT_SETTINGS } from '../config/settings.js';
 import { checkRuntimeLibraries } from '../vendor/vendorLoader.js';
@@ -40,7 +39,6 @@ export class AppController {
     this.activeTableId = null;
     this.activeCell = { rowIndex: -1, columnIndex: -1 };
     this.status = new StatusView();
-    this.preview = $('#preview');
     this.testOutput = document.querySelector('#testOutput');
 
     this.bindElements();
@@ -70,7 +68,7 @@ export class AppController {
 
   bindEvents() {
     this.selectPdfBtn.addEventListener('click', () => this.pdfInput.click());
-    this.selectTemplateBtn.addEventListener('click', () => this.templateInput.click());
+    this.selectTemplateBtn?.addEventListener('click', () => this.templateInput?.click());
 
     this.dropZone.addEventListener('click', event => {
       if (event.target === this.selectPdfBtn) return;
@@ -78,7 +76,7 @@ export class AppController {
     });
 
     this.pdfInput.addEventListener('change', event => this.setFile(event.target.files?.[0]));
-    this.templateInput.addEventListener('change', event => this.setTemplate(event.target.files?.[0]));
+    this.templateInput?.addEventListener('change', event => this.setTemplate(event.target.files?.[0]));
 
     this.pageSpecInput.addEventListener('input', () => {
       this.userEditedPageSpec = true;
@@ -103,7 +101,7 @@ export class AppController {
 
     this.processBtn.addEventListener('click', () => this.process());
     this.exportXlsxBtn.addEventListener('click', () => this.exportXlsx());
-    this.exportXlsmBtn.addEventListener('click', () => this.exportXlsm());
+    this.exportXlsmBtn?.addEventListener('click', () => this.exportXlsm());
     this.exportZipBtn.addEventListener('click', () => this.exportZip());
     this.clearBtn.addEventListener('click', () => this.clearState());
 
@@ -122,6 +120,7 @@ export class AppController {
   bindTabs() {
     const buttons = $all('[data-tab-target]');
     const panels = $all('[data-tab-panel]');
+    if (!buttons.length || !panels.length) return;
 
     for (const button of buttons) {
       button.addEventListener('click', () => {
@@ -133,10 +132,10 @@ export class AppController {
   }
 
   bindTests() {
-    $('#testLibrariesBtn').addEventListener('click', () => this.testLibraries());
-    $('#testParserBtn').addEventListener('click', () => this.testParser());
-    $('#testExtractionBtn').addEventListener('click', () => this.testExtraction());
-    $('#clearTestsBtn').addEventListener('click', () => this.clearTests());
+    document.querySelector('#testLibrariesBtn')?.addEventListener('click', () => this.testLibraries());
+    document.querySelector('#testParserBtn')?.addEventListener('click', () => this.testParser());
+    document.querySelector('#testExtractionBtn')?.addEventListener('click', () => this.testExtraction());
+    document.querySelector('#clearTestsBtn')?.addEventListener('click', () => this.clearTests());
   }
 
   async setFile(file) {
@@ -153,17 +152,15 @@ export class AppController {
     this.fileDetails.textContent = `${formatBytes(file.size)} · aguardando leitura`;
     this.exportXlsxBtn.disabled = true;
     this.exportZipBtn.disabled = true;
-    this.exportXlsmBtn.disabled = !this.templateFile;
-    renderPreview(this.preview, null);
-
+    if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !this.templateFile;
     try {
       this.status.set('Carregando PDF...', 8);
       this.pdf = await loadPdfDocument(file);
       this.pageSpecInput.placeholder = `Ex.: 1-${Math.min(3, this.pdf.numPages)}, 5`;
       this.applyDefaultPageSpecOnlyWhenSafe();
       this.updatePageSelectionInfo();
-      this.fileDetails.textContent = `${formatBytes(file.size)} · ${this.pdf.numPages} pagina(s) · camada textual sera verificada no processamento`;
-      this.status.set(`PDF carregado: ${this.pdf.numPages} pagina(s). ${this.currentSelectionSummary()}`, 100);
+      this.fileDetails.textContent = `${formatBytes(file.size)} · ${this.pdf.numPages} pagina(s)`;
+      this.status.set('PDF carregado.', 100);
     } catch (error) {
       console.error(error);
       this.status.set(`Erro ao carregar PDF: ${error.message}`, 0);
@@ -172,8 +169,8 @@ export class AppController {
 
   setTemplate(file) {
     this.templateFile = file || null;
-    this.templateName.textContent = file ? file.name : 'Nenhum modelo selecionado';
-    this.exportXlsmBtn.disabled = !file || !this.documentResult;
+    if (this.templateName) this.templateName.textContent = file ? file.name : 'Nenhum modelo selecionado';
+    if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !file || !this.documentResult;
   }
 
   applyDefaultPageSpecOnlyWhenSafe() {
@@ -197,19 +194,19 @@ export class AppController {
     return {
       ...DEFAULT_SETTINGS,
       pageSpec: normalizeSpecText(this.pageSpecInput.value),
-      mode: $('#mode').value,
-      rowTolerance: Number($('#rowTolerance').value),
-      columnTolerance: Number($('#columnTolerance').value),
-      gapFactor: Number($('#gapFactor').value),
-      ignoreTopPct: Number($('#ignoreTopPct').value),
-      ignoreBottomPct: Number($('#ignoreBottomPct').value),
-      ignoreLeftPct: Number($('#ignoreLeftPct').value),
-      ignoreRightPct: Number($('#ignoreRightPct').value),
-      mergeContinuation: $('#mergeContinuation').checked,
-      hideRepeatedLines: $('#hideRepeatedLines').checked,
-      sheetMode: $('#sheetMode').value,
-      includeXlsmInZip: $('#includeXlsmInZip').checked,
-      mergeTitles: $('#mergeTitles').checked,
+      mode: readValue('#mode', DEFAULT_SETTINGS.mode),
+      rowTolerance: readNumber('#rowTolerance', DEFAULT_SETTINGS.rowTolerance),
+      columnTolerance: readNumber('#columnTolerance', DEFAULT_SETTINGS.columnTolerance),
+      gapFactor: readNumber('#gapFactor', DEFAULT_SETTINGS.gapFactor),
+      ignoreTopPct: readNumber('#ignoreTopPct', DEFAULT_SETTINGS.ignoreTopPct),
+      ignoreBottomPct: readNumber('#ignoreBottomPct', DEFAULT_SETTINGS.ignoreBottomPct),
+      ignoreLeftPct: readNumber('#ignoreLeftPct', DEFAULT_SETTINGS.ignoreLeftPct),
+      ignoreRightPct: readNumber('#ignoreRightPct', DEFAULT_SETTINGS.ignoreRightPct),
+      mergeContinuation: readChecked('#mergeContinuation', DEFAULT_SETTINGS.mergeContinuation),
+      hideRepeatedLines: readChecked('#hideRepeatedLines', DEFAULT_SETTINGS.hideRepeatedLines),
+      sheetMode: readValue('#sheetMode', DEFAULT_SETTINGS.sheetMode),
+      includeXlsmInZip: readChecked('#includeXlsmInZip', DEFAULT_SETTINGS.includeXlsmInZip),
+      mergeTitles: readChecked('#mergeTitles', DEFAULT_SETTINGS.mergeTitles),
     };
   }
 
@@ -259,19 +256,16 @@ export class AppController {
       this.documentResult = null;
       this.exportXlsxBtn.disabled = true;
       this.exportZipBtn.disabled = true;
-      this.exportXlsmBtn.disabled = true;
-      renderPreview(this.preview, null);
-
+      if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = true;
       const summary = selectionSummary(pages, this.pdf.numPages);
       this.updatePageSelectionInfo();
-      this.status.set(`Processando selecao: ${summary}`, 1);
+      this.status.set('Processando PDF...', 1);
       this.writeTest(`SELECAO USADA NO PROCESSAMENTO\n${summary}\nLista interna: [${formatPageList(pages, 200)}]`, true);
 
       const pagesData = [];
       for (let index = 0; index < pages.length; index++) {
         const pageNumber = pages[index];
-        const progressBase = Math.round((index / pages.length) * 90);
-        this.status.set(`Extraindo pagina ${pageNumber} (${index + 1}/${pages.length})...`, progressBase);
+        this.status.set(`Extraindo pagina ${pageNumber} de ${pages.length}...`, Math.round((index / pages.length) * 90));
         pagesData.push(await extractPageTextItemsWithOptions(this.pdf, pageNumber, {
           ignoreMargins: {
             top: settings.ignoreTopPct / 100,
@@ -289,15 +283,14 @@ export class AppController {
         totalPages: this.pdf.numPages,
       });
 
-      renderPreview(this.preview, this.documentResult, this.previewHandlers());
       this.status.showMetrics(this.documentResult);
-      this.status.set(`Processamento concluido. ${summary}`, 100);
+      this.status.set('Processamento concluido.', 100);
       this.exportXlsxBtn.disabled = false;
       this.exportZipBtn.disabled = false;
-      this.exportXlsmBtn.disabled = !this.templateFile;
+      if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !this.templateFile;
 
       const textLayerPages = pagesData.filter(page => page.textLayerDetected).length;
-      this.fileDetails.textContent = `${formatBytes(this.file.size)} · ${this.pdf.numPages} pagina(s) · camada textual em ${textLayerPages}/${pagesData.length} pagina(s) processadas`;
+      this.fileDetails.textContent = `${formatBytes(this.file.size)} · ${this.pdf.numPages} pagina(s) · camada textual em ${textLayerPages}/${pagesData.length}`;
     } catch (error) {
       console.error(error);
       this.status.set(`Erro durante a extracao: ${error.message}`, 0);
@@ -334,7 +327,7 @@ export class AppController {
   async exportZip() {
     if (!this.documentResult) return;
     try {
-      this.status.set('Gerando ZIP de auditoria...', 40);
+      this.status.set('Gerando ZIP...', 40);
       const result = await buildZipExport(this.documentResult, this.templateFile, {
         includeXlsmInZip: this.documentResult.settings.includeXlsmInZip,
       });
@@ -380,7 +373,6 @@ export class AppController {
     if (!this.documentResult) return;
     const changed = operation();
     if (changed === false) return;
-    renderPreview(this.preview, this.documentResult, this.previewHandlers());
     this.status.showMetrics(this.documentResult);
   }
 
@@ -395,13 +387,12 @@ export class AppController {
     this.activeTableId = null;
     this.activeCell = { rowIndex: -1, columnIndex: -1 };
     this.fileName.textContent = 'Nenhum arquivo selecionado';
-    this.fileDetails.textContent = 'Arraste um PDF textual ou clique para escolher.';
+    this.fileDetails.textContent = 'Arraste um PDF ou clique para escolher.';
     this.pageSpecInput.value = '';
-    this.templateName.textContent = this.templateFile ? this.templateFile.name : 'Nenhum modelo selecionado';
-    renderPreview(this.preview, null);
+    if (this.templateName) this.templateName.textContent = this.templateFile ? this.templateFile.name : 'Nenhum modelo selecionado';
     this.exportXlsxBtn.disabled = true;
     this.exportZipBtn.disabled = true;
-    this.exportXlsmBtn.disabled = !this.templateFile;
+    if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !this.templateFile;
     this.status.set('Aguardando PDF.', 0);
     this.updatePageSelectionInfo();
   }
@@ -423,17 +414,12 @@ export class AppController {
   testParser() {
     try {
       const result = parsePageSpec('1-3, 5, 3', 6);
-      const expected = '1,2,3,5';
-      if (result.join(',') !== expected) {
-        throw new Error(`Resultado inesperado: ${result.join(',')}`);
-      }
-
+      if (result.join(',') !== '1,2,3,5') throw new Error(`Resultado inesperado: ${result.join(',')}`);
       const selectionTest = runPageSelectionSelfTest();
       this.writeTest([
         `OK: selecao "1-3, 5, 3" resultou em [${result.join(', ')}].`,
         `OK: selecao "2, 4-5" resultou em [${selectionTest.selected.join(', ')}].`,
         `OK: ${selectionTest.summary}`,
-        'OK: selecao manual nao e sobrescrita pelo padrao 1-total.',
       ].join('\n'), true);
     } catch (error) {
       console.error(error);
@@ -454,7 +440,6 @@ export class AppController {
         'OK: extracao simulada concluida.',
         `Tabelas: ${documentResult.tables.length}`,
         `Linhas totais: ${documentResult.tables.reduce((acc, table) => acc + table.matrix.length, 0)}`,
-        `Avisos: ${documentResult.pageDiagnostics[0]?.warnings.join(' | ') || 'nenhum'}`,
       ].join('\n'), true);
     } catch (error) {
       console.error(error);
@@ -463,10 +448,11 @@ export class AppController {
   }
 
   clearTests() {
-    this.testOutput.textContent = 'Nenhum teste executado.';
+    if (this.testOutput) this.testOutput.textContent = 'Nenhum teste executado.';
   }
 
   writeTest(message, reset = false) {
+    if (!this.testOutput) return;
     if (reset || this.testOutput.textContent === 'Nenhum teste executado.') {
       this.testOutput.textContent = message;
     } else {
@@ -475,24 +461,33 @@ export class AppController {
   }
 }
 
+function readValue(selector, fallback = '') {
+  const element = document.querySelector(selector);
+  return element ? element.value : fallback;
+}
+
+function readNumber(selector, fallback = 0) {
+  const value = Number(readValue(selector, fallback));
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function readChecked(selector, fallback = false) {
+  const element = document.querySelector(selector);
+  return element ? element.checked : fallback;
+}
+
 function buildMockPageData() {
   const rows = [
     ['COMPETENCIA', 'EMPREGADO', 'CPF', 'DEVIDO'],
     ['01/2024', 'MARIA SILVA', '000.000.000-00', 'R$ 1.234,56'],
     ['02/2024', 'JOAO SOUZA', '111.111.111-11', '987,65'],
-    ['DETALHAMENTO EXTRA', '', '', ''],
-    ['CODIGO', 'DESCRICAO', 'BASE', 'VALOR'],
-    ['1001', 'FGTS', '1.200,00', '96,00'],
-    ['1002', 'INSS', '1.200,00', '120,00'],
   ];
-
   const xPositions = [42, 150, 330, 470];
   const items = [];
 
   rows.forEach((row, rowIndex) => {
     row.forEach((text, columnIndex) => {
-      if (!text) return;
-      const fontSize = rowIndex === 0 || rowIndex === 4 ? 11 : 10;
+      const fontSize = rowIndex === 0 ? 11 : 10;
       items.push({
         id: `mock:${rowIndex}:${columnIndex}`,
         pageNumber: 1,
@@ -505,7 +500,7 @@ function buildMockPageData() {
         height: fontSize,
         right: xPositions[columnIndex] + Math.max(38, text.length * fontSize * 0.48),
         bottom: 80 + rowIndex * 20 + fontSize,
-        fontName: rowIndex === 0 || rowIndex === 4 ? 'Inter-Bold' : 'Inter-Regular',
+        fontName: rowIndex === 0 ? 'Inter-Bold' : 'Inter-Regular',
         fontSize,
         dir: 'ltr',
         hasEOL: false,

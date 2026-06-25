@@ -44,12 +44,10 @@ export async function extractPageTextItemsWithOptions(pdf, pageNumber, options =
 
 function normalizeTextItem(item, index, pageNumber, viewport) {
   const transform = item.transform || [1, 0, 0, 1, 0, 0];
-  const x = transform[4] || 0;
-  const baselineY = transform[5] || 0;
-  const y = viewport.height - baselineY;
   const fontSize = Math.hypot(transform[2] || 0, transform[3] || 0) || Math.abs(transform[3]) || item.height || 10;
-  const width = Number.isFinite(item.width) ? item.width : estimateWidth(item.str, fontSize);
-  const height = Number.isFinite(item.height) && item.height > 0 ? item.height : fontSize;
+  const rawWidth = Number.isFinite(item.width) ? item.width : estimateWidth(item.str, fontSize);
+  const rawHeight = Number.isFinite(item.height) && item.height > 0 ? item.height : fontSize;
+  const bounds = normalizeItemBounds(transform, rawWidth, rawHeight, viewport);
 
   return {
     id: `${pageNumber}:${index}`,
@@ -57,12 +55,12 @@ function normalizeTextItem(item, index, pageNumber, viewport) {
     index,
     text: cleanPdfText(item.str),
     rawText: item.str,
-    x,
-    y,
-    width,
-    height,
-    right: x + width,
-    bottom: y + height,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    right: bounds.right,
+    bottom: bounds.bottom,
     fontName: item.fontName || '',
     fontSize,
     dir: item.dir || 'ltr',
@@ -79,6 +77,29 @@ function cleanPdfText(text) {
 
 function estimateWidth(text, fontSize) {
   return String(text || '').length * fontSize * 0.48;
+}
+
+function normalizeItemBounds(transform, rawWidth, rawHeight, viewport) {
+  const origin = viewport.convertToViewportPoint(transform[4] || 0, transform[5] || 0);
+  const topRight = viewport.convertToViewportPoint((transform[4] || 0) + rawWidth, transform[5] || 0);
+  const bottomLeft = viewport.convertToViewportPoint(transform[4] || 0, (transform[5] || 0) + rawHeight);
+  const bottomRight = viewport.convertToViewportPoint((transform[4] || 0) + rawWidth, (transform[5] || 0) + rawHeight);
+
+  const xs = [origin[0], topRight[0], bottomLeft[0], bottomRight[0]];
+  const ys = [origin[1], topRight[1], bottomLeft[1], bottomRight[1]];
+  const x = Math.min(...xs);
+  const right = Math.max(...xs);
+  const y = Math.min(...ys);
+  const bottom = Math.max(...ys);
+
+  return {
+    x,
+    y,
+    right,
+    bottom,
+    width: Math.max(1, right - x),
+    height: Math.max(1, bottom - y),
+  };
 }
 
 function filterItemsByMargins(items, viewport, margins) {

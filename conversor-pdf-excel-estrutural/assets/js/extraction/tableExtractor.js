@@ -6,6 +6,7 @@ import { detectHeaderSignature } from './headerSignature.js';
 import { attachCellClassification } from './valueClassifier.js';
 import { mergeContinuationTables } from './tableContinuation.js';
 import { buildDocumentResult } from '../model/resultModel.js';
+import { cellLooksNumeric } from './geometry.js';
 
 export function extractStructuredPage(pageData, settings) {
   const documentResult = extractDocumentTables({
@@ -81,6 +82,7 @@ export function extractDocumentTables({
             ...pageBreak.removedHeader.rowMeta,
             cellMeta: (pageBreak.removedHeader.rowMeta?.cellMeta || []).map(cell => ({ ...cell })),
           },
+          rowIndex: pageBreak.removedHeader.rowIndex ?? 0,
         } : null,
       })),
     };
@@ -118,7 +120,7 @@ function buildPageAnalysis(pageData, settings) {
 function finalizePageAnalysis(pageAnalysis, repeatedRows, settings) {
   const visibleRows = pageAnalysis.rows.filter(row => {
     const key = buildRowKey(row);
-    const hidden = settings.hideRepeatedLines && repeatedRows.has(key);
+    const hidden = settings.hideRepeatedLines && repeatedRows.has(key) && !looksLikeTableHeaderRow(row);
     if (hidden) {
       pageAnalysis.hiddenRows.push({
         key,
@@ -163,9 +165,9 @@ function buildTablesForRows(pageAnalysis, rows, settings) {
 function buildTableFromBlock(pageAnalysis, block, index, settings) {
   const columnModel = buildColumnModel(block.rows, pageAnalysis.width, settings);
   const { matrix, rowMeta, cells } = rowsToMatrix(block.rows, columnModel, settings);
-  const normalizedMatrix = normalizeMatrix(matrix);
-  const headerInfo = detectHeaderSignature(normalizedMatrix, rowMeta);
-  const typedCells = attachCellClassification(normalizedMatrix, cells, headerInfo.headerRowIndex);
+  const modeled = applyKnownStrongModel(normalizeMatrix(matrix), rowMeta, cells);
+  const headerInfo = detectHeaderSignature(modeled.matrix, modeled.rowMeta);
+  const typedCells = attachCellClassification(modeled.matrix, modeled.cells, headerInfo.headerRowIndex);
   const confidence = Math.round((((block.confidence || 0) * 0.55) + ((columnModel.confidence || 0) * 0.45)) * 100) / 100;
 
   return {
@@ -173,9 +175,9 @@ function buildTableFromBlock(pageAnalysis, block, index, settings) {
     pageNumber: pageAnalysis.pageNumber,
     tableIndex: index + 1,
     sourcePages: [pageAnalysis.pageNumber],
-    matrix: normalizedMatrix,
+    matrix: modeled.matrix,
     cells: typedCells,
-    rowMeta,
+    rowMeta: modeled.rowMeta,
     bounds: block.bounds,
     columnModel,
     headerSignature: headerInfo.signature,
@@ -188,9 +190,9 @@ function buildTableFromBlock(pageAnalysis, block, index, settings) {
     pageBreaks: [{
       pageNumber: pageAnalysis.pageNumber,
       startRow: 0,
-      rowCount: normalizedMatrix.length,
+      rowCount: modeled.matrix.length,
       removedHeader: null,
-      originalRowCount: normalizedMatrix.length,
+      originalRowCount: modeled.matrix.length,
     }],
   };
 }
@@ -253,4 +255,53 @@ function inferBounds(rows) {
     top: Math.min(...rows.map(row => row.minY), 0),
     bottom: Math.max(...rows.map(row => row.maxY), 0),
   };
+}
+
+function looksLikeTableHeaderRow(row) {
+  const cells = (row.segments || []).map(segment => String(segment.text || '').trim()).filter(Boolean);
+  if (cells.length < 2) return false;
+  const numericCount = cells.filter(cellLooksNumeric).length;
+  const uppercaseCount = cells.filter(value => value.length >= 2 && value === value.toUpperCase()).length;
+  return numericCount === 0 && uppercaseCount >= Math.ceil(cells.length * 0.45);
+}
+
+function applyKnownStrongModel(matrix, rowMeta, cells) {
+  const strongHeader = [
+    'periodo mensal',
+    'base',
+    'divisor',
+    'multiplicador',
+    'quantidade',
+    'dobra',
+    'devido',
+    'pago',
+    'diferenca',
+    'indice correcao',
+    'valor corrigido',
+  ];
+
+  const headerIndex = matrix.findIndex(row => {
+    const normalized = row.map(value => normalizeToken(value));
+    return strongHeader.every((token, index) => normalized[index] === token);
+  });
+
+  if (headerIndex <= 0) {
+    return { matrix, rowMeta, cells };
+  }
+
+  return {
+    matrix: matrix.slice(headerIndex),
+    rowMeta: rowMeta.slice(headerIndex),
+    cells: cells.slice(headerIndex),
+  };
+}
+
+function normalizeToken(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }

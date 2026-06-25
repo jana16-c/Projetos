@@ -1,5 +1,6 @@
 import { safeFileStem } from '../utils/download.js';
 import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js';
+import { buildRenderableTable, deriveColumnWidths } from './tableLayout.js';
 
 export async function buildXlsmFromTemplate({
   templateFile,
@@ -71,9 +72,10 @@ function buildExtractionSheets(XLSX, documentResult) {
 
   for (const table of documentResult.tables) {
     const name = safeSheetName(`EXTRACAO_P${table.pageNumber}_T${table.tableIndex}`);
-    const matrix = table.matrix.map((row, rowIndex) => row.map((_, columnIndex) => xlsmValue(table.cells[rowIndex]?.[columnIndex])));
+    const renderable = buildRenderableTable(table);
+    const matrix = renderable.matrix.map((row, rowIndex) => row.map((_, columnIndex) => xlsmValue(renderable.cells[rowIndex]?.[columnIndex])));
     const sheet = XLSX.utils.aoa_to_sheet(matrix);
-    sheet['!cols'] = buildCols(matrix);
+    sheet['!cols'] = buildCols(matrix, deriveColumnWidths(table, Math.max(1, ...renderable.matrix.map(row => row.length))));
     sheets.push({ name, sheet });
   }
 
@@ -95,10 +97,10 @@ function buildExtractionSheets(XLSX, documentResult) {
   return sheets;
 }
 
-function buildCols(matrix) {
+function buildCols(matrix, preferredWidths = []) {
   const maxColumns = Math.max(...matrix.map(row => row.length), 1);
   return Array.from({ length: maxColumns }, (_, columnIndex) => ({
-    wch: Math.max(10, Math.min(55, ...matrix.map(row => String(row[columnIndex] ?? '').length + 2))),
+    wch: Math.max(preferredWidths[columnIndex] || 10, Math.min(80, ...matrix.map(row => String(row[columnIndex] ?? '').length + 2))),
   }));
 }
 
@@ -115,5 +117,5 @@ function safeSheetName(name) {
 }
 
 export function buildXlsmFilename(pdfName) {
-  return `${safeFileStem(pdfName)}_tabelas_extraidas.xlsm`;
+  return `${safeFileStem(pdfName)}.xlsm`;
 }

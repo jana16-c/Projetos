@@ -5,7 +5,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   columnTolerance: 9,
   gapFactor: 2.3,
   ignoreTopPct: 0,
-  ignoreBottomPct: 0,
+  ignoreBottomPct: 5,
   ignoreLeftPct: 0,
   ignoreRightPct: 0,
   mergeContinuation: true,

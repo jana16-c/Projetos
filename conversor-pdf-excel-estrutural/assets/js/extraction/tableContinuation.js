@@ -27,15 +27,21 @@ export function canMergeTables(previous, current) {
   const headerSimilarity = jaccardSimilarity(previous.headerSignature || [], current.headerSignature || []);
   const anchorDistance = averageAnchorDistance(previous.columnModel?.anchors || [], current.columnModel?.anchors || [], previous.width || current.width || 1);
   const compatibleColumns = Math.abs((previous.matrix[0]?.length || 0) - (current.matrix[0]?.length || 0)) <= 1;
+  const hasComparableHeaders = Boolean(previous.headerSignature?.length && current.headerSignature?.length);
 
-  return compatibleColumns && (headerSimilarity >= 0.7 || anchorDistance <= 0.04);
+  if (!compatibleColumns) return false;
+  if (hasComparableHeaders) {
+    return headerSimilarity >= 0.72 && anchorDistance <= 0.08;
+  }
+  return anchorDistance <= 0.025;
 }
 
 export function combineTables(previous, current) {
-  const dropHeader = shouldDropRepeatedHeader(previous, current);
-  const currentMatrix = dropHeader ? current.matrix.slice(1) : current.matrix;
-  const currentCells = dropHeader ? current.cells.slice(1) : current.cells;
-  const currentRowMeta = dropHeader ? current.rowMeta.slice(1) : current.rowMeta;
+  const headerDropIndex = getRepeatedHeaderDropIndex(previous, current);
+  const dropHeader = headerDropIndex >= 0;
+  const currentMatrix = dropRowAtIndex(current.matrix, headerDropIndex);
+  const currentCells = dropRowAtIndex(current.cells, headerDropIndex);
+  const currentRowMeta = dropRowAtIndex(current.rowMeta, headerDropIndex);
 
   return {
     ...previous,
@@ -52,9 +58,10 @@ export function combineTables(previous, current) {
         startRow: previous.matrix.length,
         rowCount: currentMatrix.length,
         removedHeader: dropHeader ? {
-          row: current.matrix[0],
-          cells: current.cells[0],
-          rowMeta: current.rowMeta[0],
+          row: current.matrix[headerDropIndex],
+          cells: current.cells[headerDropIndex],
+          rowMeta: current.rowMeta[headerDropIndex],
+          rowIndex: headerDropIndex,
         } : null,
         originalRowCount: current.matrix.length,
       },
@@ -64,11 +71,12 @@ export function combineTables(previous, current) {
   };
 }
 
-function shouldDropRepeatedHeader(previous, current) {
+function getRepeatedHeaderDropIndex(previous, current) {
   const previousHeader = previous.headerSignature || [];
   const currentHeader = current.headerSignature || [];
-  if (!previousHeader.length || !currentHeader.length) return false;
-  return jaccardSimilarity(previousHeader, currentHeader) >= 0.9;
+  if (!previousHeader.length || !currentHeader.length) return -1;
+  if (jaccardSimilarity(previousHeader, currentHeader) < 0.9) return -1;
+  return Number.isInteger(current.headerRowIndex) && current.headerRowIndex >= 0 ? current.headerRowIndex : 0;
 }
 
 function averageAnchorDistance(left, right, pageWidth) {
@@ -79,4 +87,16 @@ function averageAnchorDistance(left, right, pageWidth) {
     total += Math.abs((left[index]?.x || 0) - (right[index]?.x || 0));
   }
   return (total / size) / Math.max(1, pageWidth);
+}
+
+function dropRowAtIndex(rows = [], index) {
+  if (!Array.isArray(rows)) return [];
+  if (index < 0) return rows.map(row => cloneRow(row));
+  return rows.flatMap((row, rowIndex) => (rowIndex === index ? [] : [cloneRow(row)]));
+}
+
+function cloneRow(row) {
+  if (Array.isArray(row)) return row.map(cell => (cell && typeof cell === 'object' ? { ...cell } : cell));
+  if (row && typeof row === 'object') return { ...row };
+  return row;
 }

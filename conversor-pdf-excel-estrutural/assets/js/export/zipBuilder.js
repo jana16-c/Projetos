@@ -4,6 +4,7 @@ import { buildXlsmFilename, buildXlsmFromTemplate } from './xlsmTemplateBuilder.
 import { safeFileStem } from '../utils/download.js';
 import { ensureZipJsRuntime } from '../vendor/vendorLoader.js';
 import { collectWarnings } from '../model/resultModel.js';
+import { buildRenderableTable } from './tableLayout.js';
 
 export async function buildZipPackage(documentResult, templateFile = null, options = {}) {
   await ensureZipJsRuntime();
@@ -15,7 +16,7 @@ export async function buildZipPackage(documentResult, templateFile = null, optio
   await writer.add(`${buildExcelFilename(documentResult.sourceFileName)}`, new zip.BlobReader(xlsx));
 
   for (const table of documentResult.tables) {
-    const csv = matrixToCsv(table.matrix);
+    const csv = matrixToCsv(buildRenderableTable(table).matrix);
     await writer.add(`tabelas/pagina_${String(table.pageNumber).padStart(3, '0')}_tabela_${table.tableIndex}.csv`, new zip.TextReader(csv));
   }
 
@@ -37,5 +38,5 @@ export async function buildZipPackage(documentResult, templateFile = null, optio
 }
 
 export function buildZipFilename(pdfName) {
-  return `${safeFileStem(pdfName)}_tabelas_extraidas.zip`;
+  return `${safeFileStem(pdfName)}.zip`;
 }

@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import { buildHorizontalMerges, buildRenderableTable, deriveColumnWidths } from '../assets/js/export/tableLayout.js';
+
+const table = {
+  pageNumber: 5,
+  bounds: { right: 590 },
+  headerRowIndex: 0,
+  matrix: [
+    ['PERIODO', 'BASE', 'PAGO'],
+    ['01/2024', '100,00', '50,00'],
+    ['02/2024', '200,00', '75,00'],
+  ],
+  cells: [
+    [{ value: 'PERIODO' }, { value: 'BASE' }, { value: 'PAGO' }],
+    [{ value: '01/2024' }, { value: '100,00' }, { value: '50,00' }],
+    [{ value: '02/2024' }, { value: '200,00' }, { value: '75,00' }],
+  ],
+  rowMeta: [
+    { isHeader: true, cellMeta: [] },
+    { cellMeta: [] },
+    { cellMeta: [] },
+  ],
+  pageBreaks: [{
+    pageNumber: 5,
+    startRow: 0,
+    rowCount: 1,
+    removedHeader: null,
+  }, {
+    pageNumber: 6,
+    startRow: 1,
+    rowCount: 2,
+    removedHeader: {
+      row: ['PERIODO', 'BASE', 'PAGO'],
+      cells: [{ value: 'PERIODO' }, { value: 'BASE' }, { value: 'PAGO' }],
+      rowMeta: { isHeader: true, cellMeta: [] },
+      rowIndex: 0,
+    },
+  }],
+  columnModel: { anchors: [{ x: 40 }, { x: 210 }, { x: 360 }] },
+};
+
+const renderable = buildRenderableTable(table);
+assert.deepEqual(renderable.matrix, [
+  ['PERIODO', 'BASE', 'PAGO'],
+  ['PERIODO', 'BASE', 'PAGO'],
+  ['01/2024', '100,00', '50,00'],
+  ['02/2024', '200,00', '75,00'],
+]);
+assert.equal(renderable.rowMeta[1].isRepeatedHeader, true);
+
+const widths = deriveColumnWidths(table, 3);
+assert.equal(widths.length, 3);
+assert.ok(widths[0] >= 2);
+assert.ok(widths[1] >= 2);
+
+const merges = buildHorizontalMerges([
+  ['A', '', '', 'B', '', 'C'],
+  ['Titulo', '', '', '', '', ''],
+]);
+assert.deepEqual(merges, [
+  { rowIndex: 0, startColumn: 0, endColumn: 2 },
+  { rowIndex: 0, startColumn: 3, endColumn: 4 },
+  { rowIndex: 1, startColumn: 0, endColumn: 5 },
+]);
+
+console.log('tableLayout.test.mjs OK');

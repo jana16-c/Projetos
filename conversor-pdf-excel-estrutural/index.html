@@ -9,212 +9,50 @@
 <body>
   <main class="shell">
     <header class="hero">
-      <div>
-        <p class="eyebrow">Projetos · Processamento local</p>
-        <h1>Processador de Tabelas de Processos Trabalhistas</h1>
-        <p class="hero-text">Leia paginas especificas de PDFs textuais, separe tabelas por bloco, revise celulas antes da exportacao e gere XLSX, XLSM por modelo ou ZIP de auditoria sem enviar o PDF para fora do dispositivo.</p>
-      </div>
-      <div class="hero-badge" aria-label="Estado do processamento">
-        <span>pdf.js</span>
-        <span>ExcelJS</span>
-        <span>SheetJS</span>
-        <span>Processamento local</span>
-      </div>
+      <h1>Processador de Tabelas de Processos Trabalhistas</h1>
     </header>
 
-    <nav class="tabs" aria-label="Navegacao do processador">
-      <button class="tab-button active" type="button" data-tab-target="processador">Processador</button>
-      <button class="tab-button" type="button" data-tab-target="utilizacao">Utilizacao</button>
-      <button class="tab-button" type="button" data-tab-target="testes">Testes</button>
-      <button class="tab-button" type="button" data-tab-target="precisao">Precisao e diagnostico</button>
-    </nav>
+    <section class="panel form-layout">
+      <div class="drop-zone" id="dropZone" tabindex="0">
+        <input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden />
+        <div class="drop-icon">PDF</div>
+        <button class="btn primary" id="selectPdfBtn" type="button">Escolher PDF</button>
+        <p class="file-name" id="fileName">Nenhum arquivo selecionado</p>
+        <p class="file-details" id="fileDetails">Arraste um PDF ou clique para escolher.</p>
+      </div>
 
-    <section class="tab-panel active" id="tab-processador" data-tab-panel="processador">
-      <section class="panel form-layout">
-        <div class="card-block">
-          <div class="drop-zone" id="dropZone" tabindex="0">
-            <input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden />
-            <div class="drop-icon">PDF</div>
-            <h2>Carregue o PDF</h2>
-            <p>Arraste o arquivo aqui ou clique para escolher.</p>
-            <button class="btn primary" id="selectPdfBtn" type="button">Escolher PDF</button>
-            <p class="file-name" id="fileName">Nenhum arquivo selecionado</p>
-            <p class="file-details" id="fileDetails">Arraste um PDF textual ou clique para escolher.</p>
-          </div>
+      <div class="controls">
+        <div class="field">
+          <label for="pageSpec">Paginas</label>
+          <input id="pageSpec" name="pageSpec" type="text" placeholder="1-3, 5, 8-10" value="" />
+          <small id="pageSelectionInfo" class="page-selection-info">Selecione um PDF para validar o intervalo de paginas.</small>
         </div>
 
-        <form class="options" id="optionsForm">
-          <div class="field">
-            <label for="pageSpec">Paginas para processar</label>
-            <input id="pageSpec" name="pageSpec" type="text" placeholder="Ex.: 1-3, 5, 8-10" value="" />
-            <small>Use intervalos e virgulas. Deixe vazio para processar todas.</small>
-            <small id="pageSelectionInfo" class="page-selection-info">Selecione um PDF para validar o intervalo de paginas.</small>
+        <div class="field">
+          <label for="templateInput">Modelo XLSM</label>
+          <div class="inline-actions">
+            <button class="btn" id="selectTemplateBtn" type="button">Selecionar modelo</button>
+            <span class="file-details" id="templateName">Nenhum modelo selecionado</span>
           </div>
-
-          <div class="field">
-            <label for="mode">Modo de extracao</label>
-            <select id="mode" name="mode">
-              <option value="automatic" selected>Automatico — recomendado</option>
-              <option value="structural">Estrutural inteligente</option>
-              <option value="visual-grid">Grade visual por posicao</option>
-              <option value="full-page">Pagina inteira sem deteccao de blocos</option>
-            </select>
-          </div>
-
-          <div class="compact-grid">
-            <div class="field">
-              <label for="rowTolerance">Tolerancia de linha</label>
-              <input id="rowTolerance" name="rowTolerance" type="number" min="0.25" max="2" step="0.05" value="0.62" />
-            </div>
-            <div class="field">
-              <label for="columnTolerance">Tolerancia de coluna</label>
-              <input id="columnTolerance" name="columnTolerance" type="number" min="2" max="40" step="1" value="9" />
-            </div>
-            <div class="field">
-              <label for="gapFactor">Separacao de celula</label>
-              <input id="gapFactor" name="gapFactor" type="number" min="0.8" max="6" step="0.1" value="2.3" />
-            </div>
-            <div class="field">
-              <label for="sheetMode">Organizacao do Excel</label>
-              <select id="sheetMode" name="sheetMode">
-                <option value="table" selected>Uma aba por tabela</option>
-                <option value="page">Uma aba por pagina</option>
-                <option value="consolidated">Consolidar tabelas com o mesmo cabecalho</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="margins-grid">
-            <div class="field">
-              <label for="ignoreTopPct">Ignorar topo: 0 a 30%</label>
-              <input id="ignoreTopPct" name="ignoreTopPct" type="number" min="0" max="30" step="1" value="0" />
-            </div>
-            <div class="field">
-              <label for="ignoreBottomPct">Ignorar rodape: 0 a 30%</label>
-              <input id="ignoreBottomPct" name="ignoreBottomPct" type="number" min="0" max="30" step="1" value="0" />
-            </div>
-            <div class="field">
-              <label for="ignoreLeftPct">Ignorar esquerda: 0 a 20%</label>
-              <input id="ignoreLeftPct" name="ignoreLeftPct" type="number" min="0" max="20" step="1" value="0" />
-            </div>
-            <div class="field">
-              <label for="ignoreRightPct">Ignorar direita: 0 a 20%</label>
-              <input id="ignoreRightPct" name="ignoreRightPct" type="number" min="0" max="20" step="1" value="0" />
-            </div>
-          </div>
-
-          <div class="check-grid">
-            <label class="check-card"><input id="mergeContinuation" type="checkbox" checked /> Unir tabelas que continuam na pagina seguinte</label>
-            <label class="check-card"><input id="hideRepeatedLines" type="checkbox" checked /> Ocultar linhas repetidas detectadas</label>
-            <label class="check-card"><input id="mergeTitles" type="checkbox" checked /> Mesclar titulos detectados no XLSX</label>
-            <label class="check-card"><input id="includeXlsmInZip" type="checkbox" /> Incluir XLSM no ZIP quando houver modelo valido</label>
-          </div>
-        </form>
-      </section>
-
-      <section class="panel status-panel">
-        <div class="status-row">
-          <strong>Status</strong>
-          <span id="statusText" aria-live="polite">Aguardando PDF.</span>
+          <input id="templateInput" type="file" accept=".xlsm,application/vnd.ms-excel.sheet.macroEnabled.12" hidden />
         </div>
-        <div class="progress" aria-label="Progresso"><div id="progressBar"></div></div>
-        <div class="metrics" id="metrics"></div>
-      </section>
 
-      <section class="panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Tabelas encontradas</p>
-            <h2>Previa editavel</h2>
-          </div>
-          <p class="hint">Edicoes acontecem apenas em memoria. Use Ctrl + Z para desfazer na tabela ativa.</p>
-        </div>
-        <div id="preview" class="preview empty">Nenhuma tabela processada ainda.</div>
-      </section>
-
-      <section class="panel export-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Saida</p>
-            <h2>Exportacao</h2>
-          </div>
-        </div>
-        <div class="template-row">
-          <div class="field grow">
-            <label for="templateInput">Modelo XLSM</label>
-            <div class="inline-actions">
-              <button class="btn" id="selectTemplateBtn" type="button">Selecionar modelo .xlsm</button>
-              <span class="file-details" id="templateName">Nenhum modelo selecionado</span>
-            </div>
-            <input id="templateInput" type="file" accept=".xlsm,application/vnd.ms-excel.sheet.macroEnabled.12" hidden />
-          </div>
-        </div>
         <div class="actions">
-          <button class="btn primary" id="processBtn" type="button">Processar paginas</button>
+          <button class="btn primary" id="processBtn" type="button">Processar</button>
           <button class="btn" id="exportXlsxBtn" type="button" disabled>Exportar XLSX</button>
           <button class="btn" id="exportXlsmBtn" type="button" disabled>Exportar XLSM</button>
-          <button class="btn" id="exportZipBtn" type="button" disabled>Exportar ZIP de auditoria</button>
+          <button class="btn" id="exportZipBtn" type="button" disabled>Exportar ZIP</button>
           <button class="btn subtle" id="clearBtn" type="button">Limpar</button>
         </div>
-      </section>
+      </div>
     </section>
 
-    <section class="tab-panel" id="tab-utilizacao" data-tab-panel="utilizacao">
-      <section class="panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Manual rapido</p>
-            <h2>Fluxo de uso</h2>
-          </div>
-        </div>
-        <div class="usage-grid">
-          <article class="usage-card"><h3>1. Escolha o PDF</h3><p>O processador trabalha com PDFs textuais. PDFs escaneados sem camada de texto sao sinalizados no diagnostico.</p></article>
-          <article class="usage-card"><h3>2. Informe as paginas</h3><p>Aceita paginas isoladas e intervalos como <strong>1-3, 5, 8-10</strong>. O campo vazio usa todas as paginas.</p></article>
-          <article class="usage-card"><h3>3. Ajuste o modo</h3><p>O modo automatico tenta blocos tabulares e usa fallback conservador na pagina inteira quando necessario.</p></article>
-          <article class="usage-card"><h3>4. Revise a previa</h3><p>Cada tabela vira um cartao editavel com celulas, undo por tabela e operacoes basicas de linha e coluna.</p></article>
-          <article class="usage-card"><h3>5. Exporte</h3><p>Use XLSX como padrao, XLSM apenas com modelo macro-habilitado valido e ZIP para auditoria tecnica.</p></article>
-          <article class="usage-card"><h3>6. Auditoria</h3><p>O ZIP inclui JSON de resultado, configuracoes, alteracoes manuais, avisos e CSV por tabela.</p></article>
-        </div>
-      </section>
-    </section>
-
-    <section class="tab-panel" id="tab-testes" data-tab-panel="testes">
-      <section class="panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Testes locais</p>
-            <h2>Testes no proprio index.html</h2>
-          </div>
-          <p class="hint">Use estes testes antes de processar PDFs reais.</p>
-        </div>
-
-        <div class="test-grid">
-          <button class="btn primary" id="testLibrariesBtn" type="button">Testar bibliotecas</button>
-          <button class="btn" id="testParserBtn" type="button">Testar selecao de paginas</button>
-          <button class="btn" id="testExtractionBtn" type="button">Testar extracao simulada</button>
-          <button class="btn" id="clearTestsBtn" type="button">Limpar testes</button>
-        </div>
-
-        <pre class="test-output" id="testOutput">Nenhum teste executado.</pre>
-      </section>
-    </section>
-
-    <section class="tab-panel" id="tab-precisao" data-tab-panel="precisao">
-      <section class="panel technical-note">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Precisao</p>
-            <h2>Como a extracao funciona</h2>
-          </div>
-        </div>
-        <p>Este processador le a camada textual do PDF com coordenadas reais, aplica recorte opcional por margens, detecta blocos de tabela, tenta unir continuacoes entre paginas consecutivas e preserva identificadores juridicos como texto.</p>
-        <div class="rule-list">
-          <div><strong>Blocos:</strong> linhas com repeticao de segmentos e alinhamentos compativeis viram tabelas separadas.</div>
-          <div><strong>Continuidade:</strong> tabelas consecutivas podem ser unidas quando o cabecalho e as ancoras permanecem proximos.</div>
-          <div><strong>Valores:</strong> CPF, CNPJ, matricula, processo e competencia permanecem texto; valores monetarios, percentuais e datas explicitas sao tipados com cautela.</div>
-          <div><strong>Diagnostico:</strong> XLSX e ZIP registram avisos, confianca, paginas processadas e alteracoes manuais.</div>
-        </div>
-      </section>
+    <section class="panel status-panel">
+      <div class="status-row">
+        <strong>Status</strong>
+        <span id="statusText" aria-live="polite">Aguardando PDF.</span>
+      </div>
+      <div class="progress" aria-label="Progresso"><div id="progressBar"></div></div>
     </section>
   </main>
 

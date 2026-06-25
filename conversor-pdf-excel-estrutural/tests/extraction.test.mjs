@@ -18,6 +18,7 @@ const documentResult = extractDocumentTables({
 assert.equal(documentResult.tables.length, 1);
 assert.deepEqual(documentResult.tables[0].sourcePages, [1, 2]);
 assert.equal(documentResult.pageDiagnostics.length, 2);
+assert.ok(documentResult.tables[0].matrix.length >= 2);
 
 console.log('extraction.test.mjs OK');
 

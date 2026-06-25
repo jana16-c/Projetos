@@ -1,5 +1,6 @@
 import { safeFileStem } from '../utils/download.js';
 import { ensureExcelJsRuntime } from '../vendor/vendorLoader.js';
+import { buildRenderableTable, buildHorizontalMerges, deriveColumnWidths } from './tableLayout.js';
 
 export async function buildWorkbook(documentResult) {
   await ensureExcelJsRuntime();
@@ -9,74 +10,27 @@ export async function buildWorkbook(documentResult) {
   workbook.created = new Date();
   workbook.modified = new Date();
 
-  if (documentResult.settings.sheetMode === 'page') {
-    addPageSheets(workbook, documentResult);
-  } else if (documentResult.settings.sheetMode === 'consolidated') {
-    addConsolidatedSheets(workbook, documentResult);
-  } else {
-    addTableSheets(workbook, documentResult);
-  }
-
-  addDiagnosticsWorksheet(workbook, documentResult);
-  addOriginWorksheet(workbook, documentResult);
+  addTableSheets(workbook, documentResult);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
 function addTableSheets(workbook, documentResult) {
-  for (const table of documentResult.tables) {
-    const sheetName = safeSheetName(`P${table.pageNumber}_T${table.tableIndex}`);
+  documentResult.tables.forEach((table, index) => {
+    const sheetName = safeSheetName(`Table ${index + 1}`);
     const worksheet = workbook.addWorksheet(sheetName);
     writeTable(worksheet, table);
-  }
-}
-
-function addPageSheets(workbook, documentResult) {
-  const groups = groupBy(documentResult.tables, table => table.pageNumber);
-  for (const [pageNumber, tables] of groups.entries()) {
-    const worksheet = workbook.addWorksheet(safeSheetName(`Pag_${pageNumber}`));
-    let currentRow = 1;
-
-    for (const table of tables) {
-      worksheet.getCell(currentRow, 1).value = `Pagina ${pageNumber} · Tabela ${table.tableIndex}`;
-      decorateTitleCell(worksheet.getCell(currentRow, 1));
-      worksheet.mergeCells(currentRow, 1, currentRow, Math.max(1, table.matrix[0]?.length || 1));
-      currentRow += 1;
-      currentRow = writeTableMatrix(worksheet, table, currentRow);
-      currentRow += 2;
-    }
-
-    autoFit(worksheet);
-  }
-}
-
-function addConsolidatedSheets(workbook, documentResult) {
-  const groups = new Map();
-
-  for (const table of documentResult.tables) {
-    const key = table.headerSignature?.join('|') || `pagina:${table.pageNumber}`;
-    const bucket = groups.get(key) || [];
-    bucket.push(table);
-    groups.set(key, bucket);
-  }
-
-  let sheetIndex = 1;
-  for (const tables of groups.values()) {
-    const worksheet = workbook.addWorksheet(safeSheetName(`Tabela_${sheetIndex}`));
-    let currentRow = 1;
-    tables.forEach((table, index) => {
-      if (index > 0) currentRow += 2;
-      currentRow = writeTableMatrix(worksheet, table, currentRow);
-    });
-    autoFit(worksheet);
-    sheetIndex += 1;
-  }
+  });
 }
 
 function writeTable(worksheet, table) {
-  writeTableMatrix(worksheet, table, 1);
-  autoFit(worksheet);
+  worksheet.properties.defaultRowHeight = 15;
+  const renderable = buildRenderableTable(table);
+  const preferredWidths = deriveColumnWidths(table, Math.max(1, ...renderable.matrix.map(row => row.length)));
+  writeTableMatrix(worksheet, renderable, 1);
+  applyMerges(worksheet, buildHorizontalMerges(renderable.matrix), 1);
+  autoFit(worksheet, preferredWidths);
 }
 
 function writeTableMatrix(worksheet, table, startRow) {
@@ -87,19 +41,21 @@ function writeTableMatrix(worksheet, table, startRow) {
       const cellInfo = table.cells[rowIndex]?.[columnIndex];
       const cell = worksheetRow.getCell(columnIndex + 1);
       cell.value = excelValue(cellInfo);
-      cell.border = thinBorder();
+      cell.border = borderForRow(table, rowIndex, columnIndex, maxCols);
       cell.alignment = {
-        vertical: 'top',
-        horizontal: alignmentFor(cellInfo),
+        vertical: table.rowMeta[rowIndex]?.isTitle ? 'top' : 'center',
+        horizontal: alignmentFor(cellInfo, table, rowIndex),
         wrapText: true,
+        shrinkToFit: !table.rowMeta[rowIndex]?.isTitle,
       };
-      cell.font = baseFont();
+      cell.font = fontForRow(table, rowIndex, cellInfo);
+      cell.fill = fillForRow(table, rowIndex);
 
       if (cellInfo?.numberFormat) {
         cell.numFmt = cellInfo.numberFormat;
       }
 
-      if (rowIndex === table.headerRowIndex) {
+      if (table.rowMeta[rowIndex]?.isHeader) {
         decorateHeaderCell(cell);
       } else if (table.rowMeta[rowIndex]?.isTitle) {
         decorateTitleCell(cell);
@@ -107,75 +63,7 @@ function writeTableMatrix(worksheet, table, startRow) {
     }
   }
 
-  if (table.headerRowIndex === 0) {
-    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
-    worksheet.autoFilter = {
-      from: { row: startRow, column: 1 },
-      to: { row: startRow, column: maxCols },
-    };
-  }
-
   return startRow + table.matrix.length;
-}
-
-function addDiagnosticsWorksheet(workbook, documentResult) {
-  const worksheet = workbook.addWorksheet('_diagnostico');
-  const headers = ['Pagina', 'Tabelas', 'Itens de texto', 'Linhas', 'Colunas', 'Confianca', 'Avisos', 'Codigos'];
-  worksheet.addRow(headers);
-  headers.forEach((_, index) => decorateHeaderCell(worksheet.getCell(1, index + 1)));
-
-  for (const diagnostic of documentResult.pageDiagnostics) {
-    worksheet.addRow([
-      diagnostic.pageNumber,
-      diagnostic.tables,
-      diagnostic.allTextItems,
-      diagnostic.rows,
-      diagnostic.columns,
-      diagnostic.confidence,
-      diagnostic.warnings.join(' | '),
-      (diagnostic.codes || []).map(code => code.code).join(' | '),
-    ]);
-  }
-
-  worksheet.eachRow(row => row.eachCell(cell => {
-    cell.border = thinBorder();
-    cell.alignment = { vertical: 'top', wrapText: true };
-    cell.font = baseFont();
-  }));
-  autoFit(worksheet);
-}
-
-function addOriginWorksheet(workbook, documentResult) {
-  const worksheet = workbook.addWorksheet('_origem');
-  const rows = [
-    ['PDF de origem', documentResult.sourceFileName],
-    ['Total de paginas', documentResult.totalPages],
-    ['Paginas selecionadas', documentResult.selectedPages.join(', ')],
-    ['Data da extracao', documentResult.createdAt],
-    ['Versao do processador', '2.0.0'],
-    ['Modo usado', documentResult.settings.mode],
-    ['Margens ignoradas', JSON.stringify({
-      top: documentResult.settings.ignoreTopPct,
-      bottom: documentResult.settings.ignoreBottomPct,
-      left: documentResult.settings.ignoreLeftPct,
-      right: documentResult.settings.ignoreRightPct,
-    })],
-    ['Alteracoes manuais', JSON.stringify(documentResult.manualChanges, null, 2)],
-  ];
-
-  rows.forEach((values, index) => {
-    const row = worksheet.addRow(values);
-    if (index === 0) {
-      row.eachCell(cell => decorateHeaderCell(cell));
-    }
-  });
-
-  worksheet.eachRow((row, index) => row.eachCell(cell => {
-    if (index !== 1) cell.font = baseFont();
-    cell.border = thinBorder();
-    cell.alignment = { vertical: 'top', wrapText: true };
-  }));
-  autoFit(worksheet);
 }
 
 function excelValue(cellInfo) {
@@ -184,51 +72,65 @@ function excelValue(cellInfo) {
   return cellInfo.normalizedValue ?? cellInfo.value ?? '';
 }
 
-function alignmentFor(cellInfo) {
+function alignmentFor(cellInfo, table, rowIndex) {
+  if (table.rowMeta[rowIndex]?.isHeader || table.rowMeta[rowIndex]?.isRepeatedHeader) return 'center';
+  if (table.rowMeta[rowIndex]?.isTitle) return 'left';
   if (!cellInfo) return 'left';
-  if (cellInfo.type === 'number' || cellInfo.type === 'percentage') return 'right';
-  if (cellInfo.type === 'date') return 'center';
+  if (cellInfo.type === 'number' || cellInfo.type === 'percentage' || cellInfo.type === 'date') return 'center';
   return 'left';
 }
 
 function decorateHeaderCell(cell) {
-  cell.font = { ...baseFont(), bold: true, color: { argb: 'FFFFFFFF' }, name: 'Inter' };
-  cell.fill = solid('0B1220');
-  cell.border = thinBorder();
+  cell.font = { name: 'Arial', size: 8, bold: true, color: { argb: 'FF000000' } };
+  cell.fill = solid('CCCCCC');
+  cell.border = thinBorder('FF000000');
 }
 
 function decorateTitleCell(cell) {
-  cell.font = { ...baseFont(), bold: true, color: { argb: 'FFE5EDF8' }, name: 'Inter' };
-  cell.fill = solid('152238');
-  cell.border = thinBorder();
+  cell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF000000' } };
+  cell.fill = noFill();
+  cell.border = noBorder();
 }
 
 function baseFont() {
-  return { name: 'Inter', size: 10, color: { argb: 'FF0B1220' } };
+  return { name: 'Arial MT', size: 8, color: { argb: 'FF000000' } };
 }
 
-function autoFit(worksheet) {
+function autoFit(worksheet, preferredWidths = []) {
   worksheet.columns.forEach(column => {
-    let max = 10;
+    let max = preferredWidths[column.number - 1] || 4;
     column.eachCell({ includeEmpty: true }, cell => {
       const length = String(cell.value ?? '').length;
-      max = Math.max(max, Math.min(55, length + 2));
+      max = Math.max(max, Math.min(40, Math.ceil((length + 2) * 0.9)));
     });
     column.width = max;
   });
 }
 
-function thinBorder() {
+function thinBorder(color = 'FF000000') {
   return {
-    top: { style: 'thin', color: { argb: 'FF91A4BF' } },
-    left: { style: 'thin', color: { argb: 'FF91A4BF' } },
-    bottom: { style: 'thin', color: { argb: 'FF91A4BF' } },
-    right: { style: 'thin', color: { argb: 'FF91A4BF' } },
+    top: { style: 'thin', color: { argb: color } },
+    left: { style: 'thin', color: { argb: color } },
+    bottom: { style: 'thin', color: { argb: color } },
+    right: { style: 'thin', color: { argb: color } },
   };
 }
 
 function solid(hex) {
   return { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${hex}` } };
+}
+
+function noFill() {
+  return { type: 'pattern', pattern: 'none' };
+}
+
+function noBorder() {
+  return {
+    top: {},
+    left: {},
+    bottom: {},
+    right: {},
+  };
 }
 
 function safeSheetName(name) {
@@ -237,17 +139,44 @@ function safeSheetName(name) {
     .slice(0, 31);
 }
 
-function groupBy(items, keySelector) {
-  const map = new Map();
-  for (const item of items) {
-    const key = keySelector(item);
-    const group = map.get(key) || [];
-    group.push(item);
-    map.set(key, group);
-  }
-  return map;
+export function buildExcelFilename(pdfName) {
+  return `${safeFileStem(pdfName)}.xlsx`;
 }
 
-export function buildExcelFilename(pdfName) {
-  return `${safeFileStem(pdfName)}_tabelas_extraidas.xlsx`;
+function fontForRow(table, rowIndex, cellInfo) {
+  if (table.rowMeta[rowIndex]?.isTitle) {
+    const text = String(cellInfo?.value ?? '').trim();
+    return { name: 'Arial', size: text.length > 90 ? 10 : 12, bold: true, color: { argb: 'FF000000' } };
+  }
+  if (table.rowMeta[rowIndex]?.isHeader || table.rowMeta[rowIndex]?.isRepeatedHeader) {
+    return { name: 'Arial', size: 8, bold: true, color: { argb: 'FF000000' } };
+  }
+  return baseFont();
+}
+
+function fillForRow(table, rowIndex) {
+  if (table.rowMeta[rowIndex]?.isHeader || table.rowMeta[rowIndex]?.isRepeatedHeader) {
+    return solid('CCCCCC');
+  }
+  return noFill();
+}
+
+function borderForRow(table, rowIndex, columnIndex, maxCols) {
+  if (table.rowMeta[rowIndex]?.isTitle) return noBorder();
+  const full = thinBorder('FF000000');
+  if (columnIndex === 0) return { ...full, right: {} };
+  if (columnIndex === maxCols - 1) return { ...full, left: {} };
+  return { ...full, left: {}, right: {} };
+}
+
+function applyMerges(worksheet, merges, startRow) {
+  for (const merge of merges) {
+    if (merge.endColumn <= merge.startColumn) continue;
+    worksheet.mergeCells(
+      startRow + merge.rowIndex,
+      merge.startColumn + 1,
+      startRow + merge.rowIndex,
+      merge.endColumn + 1,
+    );
+  }
 }
