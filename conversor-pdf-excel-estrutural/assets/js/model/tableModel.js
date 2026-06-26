@@ -177,6 +177,7 @@ export function buildSnapshot(table) {
           ...pageBreak.removedHeader.rowMeta,
           cellMeta: (pageBreak.removedHeader.rowMeta?.cellMeta || []).map(cell => ({ ...cell })),
         },
+        rowIndex: pageBreak.removedHeader.rowIndex ?? 0,
       } : null,
     })),
   };
@@ -244,6 +245,7 @@ function restoreSnapshot(table, snapshot) {
         ...pageBreak.removedHeader.rowMeta,
         cellMeta: (pageBreak.removedHeader.rowMeta?.cellMeta || []).map(cell => ({ ...cell })),
       },
+      rowIndex: pageBreak.removedHeader.rowIndex ?? 0,
     } : null,
   }));
 }
@@ -266,6 +268,7 @@ function cloneSnapshot(snapshot) {
           ...pageBreak.removedHeader.rowMeta,
           cellMeta: (pageBreak.removedHeader.rowMeta?.cellMeta || []).map(cell => ({ ...cell })),
         },
+        rowIndex: pageBreak.removedHeader.rowIndex ?? 0,
       } : null,
     })),
   };

@@ -96,6 +96,7 @@ export function extractDocumentTables({
     tables: mergedTables,
     pageDiagnostics: pageAnalyses.map(analysis => analysis.diagnostics),
     settings,
+    pagesData,
   });
 }
 

@@ -8,3 +8,5 @@
 - Quando tiver a troca de uma pagina para outra de uma mesma tabela, ao inves de repetir o cabeçalho dessa tabela na mesma aba, deixe uma coisa continua. Sem contar que as ultimas linhas de uma tabela geralmente são cortadas, como exemplo: ![alt text](image.png)
 
 - Corrigir a formatação (cores, bordas, titulos), espaçamento das tabelas, deixando mais fiel e identico possivel ao pdf. Esse resultado usado em excel é do Ilovepdf, seria possivel fazer algo nesse sentido com js? Ou talvez usando python
+
+- Usar node.js pra analisar 

@@ -19,6 +19,17 @@ assert.equal(documentResult.tables.length, 1);
 assert.deepEqual(documentResult.tables[0].sourcePages, [1, 2]);
 assert.equal(documentResult.pageDiagnostics.length, 2);
 assert.ok(documentResult.tables[0].matrix.length >= 2);
+assert.equal(documentResult.version, '2.0');
+assert.equal(documentResult.tableIr.version, '2.0');
+assert.equal(documentResult.tableIr.source.fileName, 'mock.pdf');
+assert.equal(documentResult.tableIr.pages.length, 2);
+assert.equal(documentResult.tableIr.tables.length, 1);
+assert.equal(documentResult.validation.contentConservation.valid, true);
+assert.deepEqual(documentResult.validation.contentConservation.duplicated, []);
+assert.deepEqual(documentResult.validation.contentConservation.missing, []);
+assert.equal(documentResult.unassignedTextItems.length, 6);
+assert.deepEqual(documentResult.unassignedTextItems.map(item => item.id), ['1:2:0', '2:0:0', '2:0:1', '2:0:2', '2:0:3', '2:2:0']);
+assert.equal(documentResult.tableIr.tables[0].cells[0].id, 'P1_T1_R1C1');
 
 console.log('extraction.test.mjs OK');
 
@@ -26,6 +37,7 @@ function makePage(pageNumber) {
   const rows = [
     ['COMPETENCIA', 'EMPREGADO', 'CPF', 'DEVIDO'],
     [pageNumber === 1 ? '01/2024' : '02/2024', pageNumber === 1 ? 'MARIA' : 'JOAO', pageNumber === 1 ? '000.000.000-00' : '111.111.111-11', '1.200,00'],
+    ['RODAPE REPETIDO'],
   ];
   const positions = [40, 180, 340, 470];
   const items = [];

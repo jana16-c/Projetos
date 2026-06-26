@@ -10,6 +10,7 @@ import {
   undoTableChange,
   updateCell,
 } from '../model/tableModel.js';
+import { refreshDocumentResultDerivedState } from '../model/resultModel.js';
 
 export function applyTableCellEdit(documentResult, tableId, rowIndex, columnIndex, value) {
   const table = findTable(documentResult, tableId);
@@ -98,4 +99,5 @@ function trackChange(documentResult, action, tableId, payload) {
     ...payload,
     timestamp: new Date().toISOString(),
   });
+  refreshDocumentResultDerivedState(documentResult);
 }
