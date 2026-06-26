@@ -48,21 +48,23 @@ export function collectWarnings(documentResult) {
 }
 
 export function refreshDocumentResultDerivedState(documentResult) {
-  documentResult.version = '2.0';
+  documentResult.version = '3.0';
   documentResult.source = {
     fileName: documentResult.sourceFileName,
     pageCount: Number(documentResult.totalPages || 0),
     selectedPages: [...(documentResult.selectedPages || [])],
   };
 
+  documentResult.sourceItems = readInternalValue(documentResult, '_sourceItems', []).map(item => ({ ...item }));
   documentResult.pages = readInternalValue(documentResult, '_pages', []).map(page => ({ ...page }));
+  documentResult.ocr = buildOcrState(documentResult);
   documentResult.unassignedTextItems = collectUnassignedTextItems(
-    readInternalValue(documentResult, '_sourceItems', []),
+    documentResult.sourceItems,
     documentResult.tables,
   );
   documentResult.validation = {
     contentConservation: validateContentConservation(
-      readInternalValue(documentResult, '_sourceItems', []),
+      documentResult.sourceItems,
       documentResult.tables,
       documentResult.unassignedTextItems,
     ),
@@ -71,6 +73,24 @@ export function refreshDocumentResultDerivedState(documentResult) {
   documentResult.warnings = collectWarnings(documentResult);
   documentResult.tableIr = buildTableIr(documentResult);
   return documentResult;
+}
+
+export function hydrateDocumentResult(serialized = {}) {
+  const documentResult = {
+    sourceFileName: serialized.sourceFileName || serialized.source?.fileName || 'arquivo.pdf',
+    totalPages: Number(serialized.totalPages || serialized.source?.pageCount || 0),
+    selectedPages: [...(serialized.selectedPages || serialized.source?.selectedPages || [])],
+    tables: reindexTables(serialized.tables || []),
+    pageDiagnostics: Array.isArray(serialized.pageDiagnostics) ? serialized.pageDiagnostics.map(item => ({ ...item })) : [],
+    settings: normalizeSettings(serialized.settings || {}),
+    manualChanges: Array.isArray(serialized.manualChanges) ? [...serialized.manualChanges] : [],
+    createdAt: serialized.createdAt || new Date().toISOString(),
+  };
+
+  defineInternalValue(documentResult, '_sourceItems', Array.isArray(serialized.sourceItems) ? serialized.sourceItems.map(item => ({ ...item })) : []);
+  defineInternalValue(documentResult, '_pages', Array.isArray(serialized.pages) ? serialized.pages.map(page => ({ ...page })) : []);
+
+  return refreshDocumentResultDerivedState(documentResult);
 }
 
 export function validateContentConservation(sourceItems = [], tables = [], unassignedTextItems = []) {
@@ -122,7 +142,7 @@ export function validateContentConservation(sourceItems = [], tables = [], unass
 function normalizeSettings(settings = {}) {
   return {
     ...settings,
-    outputMode: settings.mode === 'visual-grid' ? 'geometric-replica' : 'clean-table',
+    outputMode: settings.outputMode || (settings.mode === 'visual-grid' ? 'visual-replica' : 'clean-table'),
     sheetMode: settings.sheetMode || 'table',
   };
 }
@@ -135,6 +155,9 @@ function cacheInternalSourceState(documentResult, pagesData = []) {
     heightPt: round(page.height),
     rotation: Number(page.rotation || 0),
     textLayerDetected: Boolean(page.textLayerDetected),
+    ocrApplied: Boolean(page.ocrApplied),
+    imageAvailable: Boolean(page.imagePath),
+    diagnostics: page.diagnostics || null,
   })));
 }
 
@@ -198,6 +221,11 @@ function buildTableIr(documentResult) {
         warnings: [...(documentResult.validation?.contentConservation?.warnings || [])],
       },
     },
+    ocr: {
+      ...(documentResult.ocr || {}),
+      appliedPages: [...(documentResult.ocr?.appliedPages || [])],
+      warnings: [...(documentResult.ocr?.warnings || [])],
+    },
   };
 }
 
@@ -216,6 +244,10 @@ function buildTableIrTable(table) {
     headerRows: Number.isInteger(table.headerRowIndex) && table.headerRowIndex >= 0 ? [table.headerRowIndex] : [],
     cells: flattenTableCells(table, columnCount),
     pageBreaks: (table.pageBreaks || []).map(pageBreak => clonePageBreak(pageBreak)),
+    columnWidthsPt: [...(table.visualModel?.columnWidthsPt || [])],
+    rowHeightsPt: [...(table.visualModel?.rowHeightsPt || [])],
+    merges: [...(table.visualModel?.merges || [])],
+    visualConfidence: Number(table.visualModel?.gridConfidence || table.confidence || 0),
     warnings: [...(table.warnings || [])],
   };
 }
@@ -247,9 +279,16 @@ function flattenTableCells(table, columnCount) {
           height: round(cell.height),
         },
         style: {
+          fontName: cell.style?.fontName || '',
           fontSizePt: meta.fontSize || table.rowMeta?.[rowIndex]?.maxFontSize || null,
           bold: Boolean(meta.bold || table.rowMeta?.[rowIndex]?.isBold),
           italic: Boolean(meta.italic || table.rowMeta?.[rowIndex]?.isItalic),
+          fontColorArgb: cell.style?.fontColorArgb || null,
+          fillArgb: cell.style?.fillArgb || meta.fillArgb || null,
+          horizontalAlignment: cell.style?.horizontalAlignment || null,
+          verticalAlignment: cell.style?.verticalAlignment || null,
+          wrapText: cell.style?.wrapText ?? true,
+          borders: cell.style?.borders || meta.borders || {},
         },
         confidence: {
           overall: round(cell.confidence ?? table.confidence ?? 0),
@@ -301,4 +340,21 @@ function round(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   return Math.round(number * 100) / 100;
+}
+
+function buildOcrState(documentResult) {
+  const appliedPages = (documentResult.pages || [])
+    .filter(page => page.ocrApplied)
+    .map(page => page.pageNumber);
+
+  const warnings = (documentResult.pages || [])
+    .flatMap(page => page.diagnostics?.ocrWarnings || [])
+    .filter(Boolean);
+
+  return {
+    appliedPages,
+    languages: documentResult.settings?.ocrLanguages || 'por+eng',
+    dpi: Number(documentResult.settings?.ocrDpi || 300),
+    warnings: [...new Set(warnings)],
+  };
 }

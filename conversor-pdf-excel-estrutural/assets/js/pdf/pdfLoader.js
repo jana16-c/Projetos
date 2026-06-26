@@ -102,7 +102,7 @@ function normalizeItemBounds(transform, rawWidth, rawHeight, viewport) {
   };
 }
 
-function filterItemsByMargins(items, viewport, margins) {
+export function filterItemsByMargins(items, viewport, margins) {
   const normalized = normalizeMargins(margins);
   if (!items.length) return items;
 
@@ -111,12 +111,17 @@ function filterItemsByMargins(items, viewport, margins) {
   const top = viewport.height * normalized.top;
   const bottom = viewport.height * (1 - normalized.bottom);
 
-  return items.filter(item => (
-    item.x >= left
-    && item.right <= right
-    && item.y >= top
-    && item.bottom <= bottom
-  ));
+  return items.filter(item => {
+    const centerX = item.x + (item.width / 2);
+    const centerY = item.y + (item.height / 2);
+
+    return (
+      centerX >= left
+      && centerX <= right
+      && centerY >= top
+      && centerY <= bottom
+    );
+  });
 }
 
 function normalizeMargins(margins = {}) {

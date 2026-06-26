@@ -13,6 +13,16 @@ export async function buildServer(options = {}) {
     logger: options.logger ?? false,
   });
 
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    reply.header('Access-Control-Allow-Headers', 'Content-Type, Accept');
+
+    if (request.method === 'OPTIONS') {
+      reply.code(204).send();
+    }
+  });
+
   const jobManager = options.jobManager || new JobManager({
     tempRoot: options.tempRoot,
     workerPath: options.workerPath,
@@ -32,10 +42,7 @@ export async function buildServer(options = {}) {
     await app.register(fastifyStatic, {
       root: resolve(PROJECT_ROOT),
       wildcard: false,
-    });
-
-    app.get('/', async (request, reply) => {
-      reply.sendFile('index.html');
+      index: ['index.html'],
     });
   }
 

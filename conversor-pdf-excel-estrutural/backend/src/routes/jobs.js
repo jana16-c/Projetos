@@ -1,4 +1,8 @@
 export async function registerJobRoutes(app) {
+  app.get('/api/health', async () => ({
+    status: 'ok',
+  }));
+
   app.post('/api/jobs', async (request, reply) => {
     const payload = await readJobPayload(request);
     const job = await app.jobManager.createJob(payload);
@@ -8,6 +12,8 @@ export async function registerJobRoutes(app) {
   app.get('/api/jobs/:jobId', async request => app.jobManager.getJob(request.params.jobId));
 
   app.get('/api/jobs/:jobId/table-ir', async request => app.jobManager.getTableIr(request.params.jobId));
+
+  app.get('/api/jobs/:jobId/document-result', async request => app.jobManager.getDocumentResult(request.params.jobId));
 
   app.put('/api/jobs/:jobId/table-ir', async request => app.jobManager.updateTableIr(request.params.jobId, request.body));
 
@@ -86,17 +92,25 @@ async function readMultipartPayload(request) {
 function normalizeSettings(source = {}) {
   return {
     mode: source.mode || 'automatic',
+    sourceMode: readEnum(source.sourceMode, ['auto', 'text', 'hybrid', 'ocr'], 'auto'),
+    outputMode: readEnum(source.outputMode, ['visual-replica', 'clean-table'], 'visual-replica'),
     rowTolerance: readNumber(source.rowTolerance, 0.62),
     columnTolerance: readNumber(source.columnTolerance, 9),
     gapFactor: readNumber(source.gapFactor, 2.3),
+    ocrDpi: clamp(readNumber(source.ocrDpi, 300), 200, 450),
+    ocrLanguages: sanitizeOcrLanguages(source.ocrLanguages, 'por+eng'),
+    ocrMinConfidence: clamp(readNumber(source.ocrMinConfidence, 45), 0, 100),
+    detectBorders: readBoolean(source.detectBorders, true),
+    detectColors: readBoolean(source.detectColors, true),
+    mergeSplitRows: readBoolean(source.mergeSplitRows, true),
+    keepPageImagesInAudit: readBoolean(source.keepPageImagesInAudit, false),
     ignoreTopPct: readNumber(source.ignoreTopPct, 0),
-    ignoreBottomPct: readNumber(source.ignoreBottomPct, 5),
+    ignoreBottomPct: readNumber(source.ignoreBottomPct, 0),
     ignoreLeftPct: readNumber(source.ignoreLeftPct, 0),
     ignoreRightPct: readNumber(source.ignoreRightPct, 0),
     mergeContinuation: readBoolean(source.mergeContinuation, true),
     hideRepeatedLines: readBoolean(source.hideRepeatedLines, true),
     sheetMode: source.sheetMode || 'table',
-    outputMode: source.outputMode || 'clean-table',
   };
 }
 
@@ -109,4 +123,18 @@ function readBoolean(value, fallback) {
 function readNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function readEnum(value, allowed, fallback) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
+function sanitizeOcrLanguages(value, fallback) {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  return /^[a-z0-9_+-]+$/i.test(normalized) ? normalized : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value)));
 }

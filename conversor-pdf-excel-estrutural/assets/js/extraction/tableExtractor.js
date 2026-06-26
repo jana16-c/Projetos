@@ -5,6 +5,8 @@ import { detectTableBlocks } from './tableBlocks.js';
 import { detectHeaderSignature } from './headerSignature.js';
 import { attachCellClassification } from './valueClassifier.js';
 import { mergeContinuationTables } from './tableContinuation.js';
+import { mergeSplitBoundaryRow } from './splitRowContinuation.js';
+import { buildTablesFromVisualGrid } from './visualTableExtractor.js';
 import { buildDocumentResult } from '../model/resultModel.js';
 import { cellLooksNumeric } from './geometry.js';
 
@@ -110,6 +112,11 @@ function buildPageAnalysis(pageData, settings) {
     items: pageData.items,
     allItems: pageData.allItems || pageData.items,
     textLayerDetected: pageData.textLayerDetected,
+    visualTables: pageData.visualTables || [],
+    visualLines: pageData.visualLines || [],
+    ocrApplied: Boolean(pageData.ocrApplied),
+    ocrDiagnostics: pageData.diagnostics || null,
+    imagePath: pageData.imagePath || null,
     rows,
     stats,
     tables: [],
@@ -146,6 +153,11 @@ function finalizePageAnalysis(pageAnalysis, repeatedRows, settings) {
 }
 
 function buildTablesForRows(pageAnalysis, rows, settings) {
+  if (settings.outputMode === 'visual-replica' && pageAnalysis.visualTables?.length) {
+    const visualTables = buildTablesFromVisualGrid(pageAnalysis, settings);
+    if (visualTables.length) return visualTables;
+  }
+
   if (!rows.length) return [];
 
   const extractionMode = settings.mode === 'automatic' ? 'structural' : settings.mode;
@@ -166,7 +178,9 @@ function buildTablesForRows(pageAnalysis, rows, settings) {
 function buildTableFromBlock(pageAnalysis, block, index, settings) {
   const columnModel = buildColumnModel(block.rows, pageAnalysis.width, settings);
   const { matrix, rowMeta, cells } = rowsToMatrix(block.rows, columnModel, settings);
-  const modeled = applyKnownStrongModel(normalizeMatrix(matrix), rowMeta, cells);
+  const modeled = settings.outputMode === 'visual-replica'
+    ? { matrix: normalizeMatrix(matrix), rowMeta, cells }
+    : applyKnownStrongModel(normalizeMatrix(matrix), rowMeta, cells);
   const headerInfo = detectHeaderSignature(modeled.matrix, modeled.rowMeta);
   const typedCells = attachCellClassification(modeled.matrix, modeled.cells, headerInfo.headerRowIndex);
   const confidence = Math.round((((block.confidence || 0) * 0.55) + ((columnModel.confidence || 0) * 0.45)) * 100) / 100;
@@ -188,6 +202,7 @@ function buildTableFromBlock(pageAnalysis, block, index, settings) {
     continuedFromPreviousPage: false,
     continuesOnNextPage: false,
     width: pageAnalysis.width,
+    height: pageAnalysis.height,
     pageBreaks: [{
       pageNumber: pageAnalysis.pageNumber,
       startRow: 0,
@@ -197,6 +212,8 @@ function buildTableFromBlock(pageAnalysis, block, index, settings) {
     }],
   };
 }
+
+export { mergeSplitBoundaryRow };
 
 function normalizeMatrix(matrix) {
   const maxCols = Math.max(1, ...matrix.map(row => row.length));

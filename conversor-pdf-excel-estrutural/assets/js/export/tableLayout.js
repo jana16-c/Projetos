@@ -39,6 +39,9 @@ export function buildRenderableTable(table) {
 }
 
 export function deriveColumnWidths(table, columnCount) {
+  const visualWidths = deriveVisualColumnWidths(table, columnCount);
+  if (visualWidths.length) return visualWidths;
+
   const anchors = (table.columnModel?.anchors || [])
     .map(anchor => Number(anchor?.x))
     .filter(Number.isFinite)
@@ -62,6 +65,35 @@ export function deriveColumnWidths(table, columnCount) {
     const width = Math.max(2, Math.round(Math.max(10, next - left) / 7.2));
     return Math.min(40, width);
   });
+}
+
+export function deriveRowHeights(table, rowCount) {
+  const visualHeights = (table.visualModel?.rowHeightsPt || [])
+    .map(value => Number(value))
+    .filter(value => Number.isFinite(value) && value > 0);
+
+  if (visualHeights.length) {
+    return Array.from({ length: rowCount }, (_, index) => clamp(Math.round(visualHeights[index] || visualHeights[visualHeights.length - 1] || 15), 12, 120));
+  }
+
+  return Array.from({ length: rowCount }, (_, index) => {
+    const row = table.cells?.[index] || [];
+    const tallest = row.reduce((max, cell) => Math.max(max, Number(cell?.height || 0)), 0);
+    return clamp(Math.round(tallest || 15), 12, 120);
+  });
+}
+
+export function buildTableMerges(table, renderable = null) {
+  const visualMerges = normalizeVisualMerges(table.visualModel?.merges || []);
+  if (visualMerges.length) return visualMerges;
+
+  const matrix = renderable?.matrix || buildRenderableTable(table).matrix;
+  return buildHorizontalMerges(matrix).map(merge => ({
+    startRow: merge.rowIndex,
+    endRow: merge.rowIndex,
+    startColumn: merge.startColumn,
+    endColumn: merge.endColumn,
+  }));
 }
 
 export function buildHorizontalMerges(matrix = []) {
@@ -99,6 +131,37 @@ export function buildHorizontalMerges(matrix = []) {
   }
 
   return merges;
+}
+
+function deriveVisualColumnWidths(table, columnCount) {
+  const widths = (table.visualModel?.columnWidthsPt || [])
+    .map(value => Number(value))
+    .filter(value => Number.isFinite(value) && value > 0);
+
+  if (!widths.length || columnCount <= 0) return [];
+
+  return Array.from({ length: columnCount }, (_, index) => {
+    const width = widths[index] || widths[widths.length - 1] || 42;
+    return Math.min(40, Math.max(2, Math.round(width / 7.2)));
+  });
+}
+
+function normalizeVisualMerges(merges = []) {
+  return merges
+    .map(merge => ({
+      startRow: Number(merge?.startRow),
+      endRow: Number(merge?.endRow),
+      startColumn: Number(merge?.startColumn),
+      endColumn: Number(merge?.endColumn),
+    }))
+    .filter(merge => (
+      Number.isInteger(merge.startRow)
+      && Number.isInteger(merge.endRow)
+      && Number.isInteger(merge.startColumn)
+      && Number.isInteger(merge.endColumn)
+      && merge.endRow >= merge.startRow
+      && merge.endColumn >= merge.startColumn
+    ));
 }
 
 function normalizePageBreaks(table, rowCount) {

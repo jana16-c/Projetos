@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildHorizontalMerges, buildRenderableTable, deriveColumnWidths } from '../assets/js/export/tableLayout.js';
+import { buildHorizontalMerges, buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from '../assets/js/export/tableLayout.js';
 
 const table = {
   pageNumber: 5,
@@ -37,6 +37,11 @@ const table = {
     },
   }],
   columnModel: { anchors: [{ x: 40 }, { x: 210 }, { x: 360 }] },
+  visualModel: {
+    columnWidthsPt: [120, 110, 100],
+    rowHeightsPt: [28, 20, 22],
+    merges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 2 }],
+  },
 };
 
 const renderable = buildRenderableTable(table);
@@ -51,6 +56,14 @@ const widths = deriveColumnWidths(table, 3);
 assert.equal(widths.length, 3);
 assert.ok(widths[0] >= 2);
 assert.ok(widths[1] >= 2);
+
+const heights = deriveRowHeights(table, 3);
+assert.deepEqual(heights, [28, 20, 22]);
+
+const visualMerges = buildTableMerges(table, renderable);
+assert.deepEqual(visualMerges, [
+  { startRow: 0, endRow: 0, startColumn: 0, endColumn: 2 },
+]);
 
 const merges = buildHorizontalMerges([
   ['A', '', '', 'B', '', 'C'],

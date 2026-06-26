@@ -15,6 +15,7 @@ import { buildXlsxExport, buildXlsmExport, buildZipExport } from '../export/expo
 import { StatusView } from './status.js';
 import { DEFAULT_SETTINGS } from '../config/settings.js';
 import { checkRuntimeLibraries } from '../vendor/vendorLoader.js';
+import { processPdfWithBackend } from './backendClient.js';
 import {
   addTableColumn,
   addTableRow,
@@ -149,17 +150,18 @@ export class AppController {
     this.pdf = null;
     this.documentResult = null;
     this.fileName.textContent = file.name;
-    this.fileDetails.textContent = `${formatBytes(file.size)} · aguardando leitura`;
+    this.fileDetails.textContent = `${formatBytes(file.size)} - aguardando leitura`;
     this.exportXlsxBtn.disabled = true;
     this.exportZipBtn.disabled = true;
     if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !this.templateFile;
+
     try {
       this.status.set('Carregando PDF...', 8);
       this.pdf = await loadPdfDocument(file);
       this.pageSpecInput.placeholder = `Ex.: 1-${Math.min(3, this.pdf.numPages)}, 5`;
       this.applyDefaultPageSpecOnlyWhenSafe();
       this.updatePageSelectionInfo();
-      this.fileDetails.textContent = `${formatBytes(file.size)} · ${this.pdf.numPages} pagina(s)`;
+      this.fileDetails.textContent = `${formatBytes(file.size)} - ${this.pdf.numPages} pagina(s)`;
       this.status.set('Pronto.', 100);
     } catch (error) {
       console.error(error);
@@ -195,9 +197,18 @@ export class AppController {
       ...DEFAULT_SETTINGS,
       pageSpec: normalizeSpecText(this.pageSpecInput.value),
       mode: readValue('#mode', DEFAULT_SETTINGS.mode),
+      sourceMode: readValue('#sourceMode', DEFAULT_SETTINGS.sourceMode),
+      outputMode: readValue('#outputMode', DEFAULT_SETTINGS.outputMode),
       rowTolerance: readNumber('#rowTolerance', DEFAULT_SETTINGS.rowTolerance),
       columnTolerance: readNumber('#columnTolerance', DEFAULT_SETTINGS.columnTolerance),
       gapFactor: readNumber('#gapFactor', DEFAULT_SETTINGS.gapFactor),
+      ocrDpi: readNumber('#ocrDpi', DEFAULT_SETTINGS.ocrDpi),
+      ocrLanguages: readValue('#ocrLanguages', DEFAULT_SETTINGS.ocrLanguages),
+      ocrMinConfidence: readNumber('#ocrMinConfidence', DEFAULT_SETTINGS.ocrMinConfidence),
+      detectBorders: readChecked('#detectBorders', DEFAULT_SETTINGS.detectBorders),
+      detectColors: readChecked('#detectColors', DEFAULT_SETTINGS.detectColors),
+      mergeSplitRows: readChecked('#mergeSplitRows', DEFAULT_SETTINGS.mergeSplitRows),
+      keepPageImagesInAudit: readChecked('#keepPageImagesInAudit', DEFAULT_SETTINGS.keepPageImagesInAudit),
       ignoreTopPct: readNumber('#ignoreTopPct', DEFAULT_SETTINGS.ignoreTopPct),
       ignoreBottomPct: readNumber('#ignoreBottomPct', DEFAULT_SETTINGS.ignoreBottomPct),
       ignoreLeftPct: readNumber('#ignoreLeftPct', DEFAULT_SETTINGS.ignoreLeftPct),
@@ -257,31 +268,14 @@ export class AppController {
       this.exportXlsxBtn.disabled = true;
       this.exportZipBtn.disabled = true;
       if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = true;
+
       const summary = selectionSummary(pages, this.pdf.numPages);
       this.updatePageSelectionInfo();
       this.status.set('Processando...', 1);
       this.writeTest(`SELECAO USADA NO PROCESSAMENTO\n${summary}\nLista interna: [${formatPageList(pages, 200)}]`, true);
 
-      const pagesData = [];
-      for (let index = 0; index < pages.length; index++) {
-        const pageNumber = pages[index];
-        this.status.set(`Processando ${index + 1}/${pages.length}...`, Math.round((index / pages.length) * 90));
-        pagesData.push(await extractPageTextItemsWithOptions(this.pdf, pageNumber, {
-          ignoreMargins: {
-            top: settings.ignoreTopPct / 100,
-            bottom: settings.ignoreBottomPct / 100,
-            left: settings.ignoreLeftPct / 100,
-            right: settings.ignoreRightPct / 100,
-          },
-        }));
-      }
-
-      this.documentResult = extractDocumentTables({
-        pagesData,
-        settings,
-        sourceFileName: this.file.name,
-        totalPages: this.pdf.numPages,
-      });
+      const backendResult = await this.tryBackendProcessing(settings);
+      this.documentResult = backendResult?.documentResult || await this.processLocally(settings, pages);
 
       this.status.showMetrics(this.documentResult);
       this.status.set('Convertido.', 100);
@@ -289,13 +283,56 @@ export class AppController {
       this.exportZipBtn.disabled = false;
       if (this.exportXlsmBtn) this.exportXlsmBtn.disabled = !this.templateFile;
 
-      const textLayerPages = pagesData.filter(page => page.textLayerDetected).length;
-      this.fileDetails.textContent = `${formatBytes(this.file.size)} · ${this.pdf.numPages} pagina(s) · camada textual em ${textLayerPages}/${pagesData.length}`;
+      const pageStates = this.documentResult.pages || [];
+      const textLayerPages = pageStates.filter(page => page.textLayerDetected).length;
+      const ocrPages = pageStates.filter(page => page.ocrApplied).length;
+      this.fileDetails.textContent = `${formatBytes(this.file.size)} - ${this.pdf.numPages} pagina(s) - texto em ${textLayerPages}/${pages.length} - OCR em ${ocrPages}`;
     } catch (error) {
       console.error(error);
       this.status.set(`Erro durante a extracao: ${error.message}`, 0);
       this.writeTest(`ERRO NO PROCESSAMENTO\n${error.stack || error.message}`, true);
     }
+  }
+
+  async tryBackendProcessing(settings) {
+    try {
+      return await processPdfWithBackend({
+        file: this.file,
+        settings,
+        onProgress: progress => {
+          this.status.set(progress.message || mapStageLabel(progress.stage), progress.progress);
+        },
+      });
+    } catch (error) {
+      if (error?.code !== 'BACKEND_UNAVAILABLE') throw error;
+      this.writeTest('Backend indisponivel. Processamento local usado como fallback.');
+      this.status.set('Backend indisponivel. Usando modo local...', 5);
+      return null;
+    }
+  }
+
+  async processLocally(settings, pages) {
+    const pagesData = [];
+
+    for (let index = 0; index < pages.length; index++) {
+      const pageNumber = pages[index];
+      this.status.set(`Processando ${index + 1}/${pages.length}...`, Math.round((index / pages.length) * 90));
+      pagesData.push(await extractPageTextItemsWithOptions(this.pdf, pageNumber, {
+        ignoreMargins: {
+          top: settings.ignoreTopPct / 100,
+          bottom: settings.ignoreBottomPct / 100,
+          left: settings.ignoreLeftPct / 100,
+          right: settings.ignoreRightPct / 100,
+        },
+      }));
+    }
+
+    return extractDocumentTables({
+      pagesData,
+      settings,
+      sourceFileName: this.file.name,
+      totalPages: this.pdf.numPages,
+    });
   }
 
   async exportXlsx() {
@@ -314,7 +351,8 @@ export class AppController {
   async exportXlsm() {
     if (!this.documentResult) return;
     try {
-      this.status.set('Exportando...', 40);
+      this.status.set('Preparando XLSM...', 40);
+      await waitForUi();
       const result = await buildXlsmExport(this.documentResult, this.templateFile);
       downloadBlob(result.blob, result.filename);
       this.status.set('Pronto!', 100);
@@ -523,4 +561,25 @@ function formatBytes(bytes) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function mapStageLabel(stage) {
+  const labels = {
+    queued: 'Na fila...',
+    validating: 'Validando PDF...',
+    'loading-pdf': 'Abrindo PDF...',
+    'extracting-text': 'Lendo texto...',
+    'rendering-page': 'Renderizando pagina...',
+    'running-ocr': 'Executando OCR...',
+    'detecting-grid': 'Detectando grade...',
+    reconciling: 'Consolidando texto...',
+    'detecting-regions': 'Montando tabelas...',
+    'validating-content': 'Validando resultado...',
+    completed: 'Convertido.',
+  };
+  return labels[stage] || 'Processando...';
+}
+
+function waitForUi() {
+  return new Promise(resolve => setTimeout(resolve, 0));
 }

@@ -1,6 +1,8 @@
 import { safeFileStem } from '../utils/download.js';
 import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js';
-import { buildRenderableTable, deriveColumnWidths } from './tableLayout.js';
+import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js';
+
+const MAX_XLSM_SOURCE_AUDIT_ROWS = 5000;
 
 export async function buildXlsmFromTemplate({
   templateFile,
@@ -49,8 +51,8 @@ export async function buildXlsmFromTemplate({
   });
 }
 
-export function writeExtractionToMacroWorkbook(XLSX, workbook, documentResult) {
-  const sheets = buildExtractionSheets(XLSX, documentResult);
+export function writeExtractionToMacroWorkbook(XLSX, workbook, documentResult, options = {}) {
+  const sheets = buildExtractionSheets(XLSX, documentResult, options);
   replaceExtractionSheets(workbook, sheets);
 }
 
@@ -67,7 +69,7 @@ export function replaceExtractionSheets(workbook, sheets) {
   }
 }
 
-function buildExtractionSheets(XLSX, documentResult) {
+export function buildExtractionSheets(XLSX, documentResult, options = {}) {
   const sheets = [];
 
   for (const table of documentResult.tables) {
@@ -76,6 +78,11 @@ function buildExtractionSheets(XLSX, documentResult) {
     const matrix = renderable.matrix.map((row, rowIndex) => row.map((_, columnIndex) => xlsmValue(renderable.cells[rowIndex]?.[columnIndex])));
     const sheet = XLSX.utils.aoa_to_sheet(matrix);
     sheet['!cols'] = buildCols(matrix, deriveColumnWidths(table, Math.max(1, ...renderable.matrix.map(row => row.length))));
+    sheet['!rows'] = deriveRowHeights(table, matrix.length).map(height => ({ hpt: height }));
+    sheet['!merges'] = buildTableMerges(table, renderable).map(merge => ({
+      s: { r: merge.startRow, c: merge.startColumn },
+      e: { r: merge.endRow, c: merge.endColumn },
+    }));
     sheets.push({ name, sheet });
   }
 
@@ -94,14 +101,69 @@ function buildExtractionSheets(XLSX, documentResult) {
   diagnosticSheet['!cols'] = buildCols(diagnosticRows);
   sheets.push({ name: safeSheetName('EXTRACAO_DIAGNOSTICO'), sheet: diagnosticSheet });
 
+  const ocrRows = [
+    ['Pagina', 'Texto PDF', 'OCR aplicado', 'Imagem', 'Modo', 'Motivo', 'Avisos'],
+    ...(documentResult.pages || []).map(page => ([
+      page.pageNumber,
+      page.textLayerDetected ? 'sim' : 'nao',
+      page.ocrApplied ? 'sim' : 'nao',
+      page.imageAvailable ? 'sim' : 'nao',
+      page.diagnostics?.sourceMode || '',
+      page.diagnostics?.reason || '',
+      (page.diagnostics?.ocrWarnings || []).join(' | '),
+    ])),
+  ];
+  const ocrSheet = XLSX.utils.aoa_to_sheet(ocrRows);
+  ocrSheet['!cols'] = buildCols(ocrRows);
+  sheets.push({ name: safeSheetName('EXTRACAO_OCR_AUDITORIA'), sheet: ocrSheet });
+
+  const sourceRows = [
+    ['ID', 'Pagina', 'Texto', 'Texto bruto', 'X', 'Y', 'Largura', 'Altura'],
+  ];
+
+  const maxSourceRows = Number(options.maxSourceAuditRows || MAX_XLSM_SOURCE_AUDIT_ROWS);
+  const sourceItems = documentResult.sourceItems || [];
+  if (sourceItems.length <= maxSourceRows) {
+    sourceRows.push(...sourceItems.map(item => ([
+      item.id,
+      item.pageNumber,
+      item.text || '',
+      item.rawText || '',
+      item.x,
+      item.y,
+      item.width,
+      item.height,
+    ])));
+  } else {
+    sourceRows.push(
+      ['_resumo', '', 'Aba detalhada omitida no XLSM para evitar travamento.', '', '', '', '', ''],
+      ['_itens_origem', sourceItems.length, '', '', '', '', '', ''],
+      ['_limite_xlsm', maxSourceRows, '', '', '', '', '', ''],
+    );
+  }
+
+  const sourceSheet = XLSX.utils.aoa_to_sheet(sourceRows);
+  sourceSheet['!cols'] = buildCols(sourceRows);
+  sheets.push({ name: safeSheetName('EXTRACAO_ORIGEM'), sheet: sourceSheet });
+
   return sheets;
 }
 
 function buildCols(matrix, preferredWidths = []) {
-  const maxColumns = Math.max(...matrix.map(row => row.length), 1);
-  return Array.from({ length: maxColumns }, (_, columnIndex) => ({
-    wch: Math.max(preferredWidths[columnIndex] || 10, Math.min(80, ...matrix.map(row => String(row[columnIndex] ?? '').length + 2))),
-  }));
+  let maxColumns = 1;
+  for (const row of matrix) {
+    maxColumns = Math.max(maxColumns, row.length);
+  }
+
+  return Array.from({ length: maxColumns }, (_, columnIndex) => {
+    let contentWidth = 2;
+    for (const row of matrix) {
+      contentWidth = Math.max(contentWidth, String(row[columnIndex] ?? '').length + 2);
+    }
+    return {
+      wch: Math.max(preferredWidths[columnIndex] || 10, Math.min(80, contentWidth)),
+    };
+  });
 }
 
 function xlsmValue(cell) {

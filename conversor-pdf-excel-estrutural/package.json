@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Conversor local de PDF textual para Excel com extracao estrutural, revisao manual e saida XLSX/XLSM/ZIP.",
   "scripts": {
-    "start": "python server.py",
+    "start": "node backend/src/server.js",
     "start:backend": "node backend/src/server.js",
     "test": "node tests/run-all.mjs",
     "test:backend": "node tests/backendJobs.test.mjs",

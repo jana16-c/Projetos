@@ -51,8 +51,18 @@ const tableIrResponse = await app.inject({
 });
 assert.equal(tableIrResponse.statusCode, 200);
 const tableIr = tableIrResponse.json();
-assert.equal(tableIr.version, '2.0');
+assert.equal(tableIr.version, '3.0');
 assert.equal(tableIr.tables.length >= 1, true);
+
+const documentResultResponse = await app.inject({
+  method: 'GET',
+  url: `/api/jobs/${createdJob.jobId}/document-result`,
+});
+assert.equal(documentResultResponse.statusCode, 200);
+const documentResult = documentResultResponse.json();
+assert.equal(documentResult.version, '3.0');
+assert.equal(Array.isArray(documentResult.sourceItems), true);
+assert.equal(Array.isArray(documentResult.pages), true);
 
 const exportResponse = await app.inject({
   method: 'POST',

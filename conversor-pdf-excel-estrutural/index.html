@@ -37,6 +37,64 @@
           <input id="templateInput" type="file" accept=".xlsm,application/vnd.ms-excel.sheet.macroEnabled.12" hidden />
         </div>
 
+        <details class="advanced-options">
+          <summary>Opções avançadas</summary>
+          <div class="advanced-grid">
+            <div class="field">
+              <label for="sourceMode">Origem</label>
+              <select id="sourceMode" name="sourceMode">
+                <option value="auto" selected>Automático</option>
+                <option value="hybrid">Híbrido</option>
+                <option value="text">Texto PDF</option>
+                <option value="ocr">OCR</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="outputMode">Saída</label>
+              <select id="outputMode" name="outputMode">
+                <option value="visual-replica" selected>Replica visual</option>
+                <option value="clean-table">Tabela limpa</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="ocrDpi">OCR DPI</label>
+              <input id="ocrDpi" name="ocrDpi" type="number" min="200" max="450" step="10" value="300" />
+            </div>
+
+            <div class="field">
+              <label for="ocrMinConfidence">Confiança minima OCR</label>
+              <input id="ocrMinConfidence" name="ocrMinConfidence" type="number" min="0" max="100" step="1" value="45" />
+            </div>
+
+            <div class="field advanced-span">
+              <label for="ocrLanguages">Idiomas OCR</label>
+              <input id="ocrLanguages" name="ocrLanguages" type="text" value="por+eng" />
+            </div>
+
+            <label class="toggle">
+              <input id="detectBorders" type="checkbox" checked />
+              <span>Detectar bordas</span>
+            </label>
+
+            <label class="toggle">
+              <input id="detectColors" type="checkbox" checked />
+              <span>Detectar cores</span>
+            </label>
+
+            <label class="toggle">
+              <input id="mergeSplitRows" type="checkbox" checked />
+              <span>Unir linhas quebradas</span>
+            </label>
+
+            <label class="toggle">
+              <input id="keepPageImagesInAudit" type="checkbox" />
+              <span>Guardar imagens na auditoria</span>
+            </label>
+          </div>
+        </details>
+
         <div class="actions">
           <button class="btn primary" id="processBtn" type="button">Processar</button>
           <button class="btn" id="exportXlsxBtn" type="button" disabled>Exportar XLSX</button>

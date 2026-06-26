@@ -118,6 +118,7 @@ textarea:focus {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   color: var(--text);
@@ -155,6 +156,45 @@ textarea {
   gap: 6px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.advanced-options {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(11, 18, 32, 0.55);
+}
+
+.advanced-options summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 12px;
+  font-weight: 700;
+}
+
+.advanced-options summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 0 12px 12px;
+}
+
+.advanced-span {
+  grid-column: 1 / -1;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.toggle input {
+  width: auto;
 }
 
 .btn {
@@ -296,6 +336,10 @@ textarea {
 @media (max-width: 900px) {
   .form-layout,
   .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .advanced-grid {
     grid-template-columns: 1fr;
   }
 }

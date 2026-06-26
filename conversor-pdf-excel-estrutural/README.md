@@ -1,50 +1,79 @@
 # Processador de Tabelas de Processos Trabalhistas
 
-Aplicativo local para ler paginas especificas de PDFs textuais, separar blocos tabulares, revisar o resultado antes da exportacao e gerar XLSX, XLSM por modelo e ZIP de auditoria sem enviar o PDF para servidores externos.
+Aplicativo local para converter PDFs em planilhas estruturadas, com modo textual, OCR opcional e exportacao visual mais fiel quando a rota backend esta ativa.
 
-## Fluxo principal
+## Arquitetura
 
-1. Carregue um PDF textual.
-2. Informe as paginas desejadas em formatos como `1-3, 5, 8-10`.
-3. Escolha o modo de extracao, margens ignoradas e organizacao do Excel.
-4. Processe as paginas.
-5. Revise as tabelas detectadas na previa editavel.
-6. Exporte em:
-   - `.xlsx` como formato padrao;
-   - `.xlsm` somente com modelo macro-habilitado valido;
-   - `.zip` para auditoria tecnica.
+- `index.html` + `assets/js/*`: interface local, selecao de paginas, disparo do processamento e exportacao XLSX/XLSM/ZIP.
+- `backend/src/*`: backend Fastify que recebe o PDF, cria jobs, executa OCR quando necessario e devolve `document-result` e `table-ir`.
+- `ocr/*`: sidecar Python local para renderizacao de pagina, OCR Tesseract, deteccao de grade e estilos visuais.
 
-## Recursos implementados
+## Como instalar
 
-- leitura local com `pdf.js`;
-- blocos tabulares por pagina;
-- deteccao de repeticao de cabecalho e rodape;
-- uniao opcional de continuacao entre paginas consecutivas;
-- tipagem conservadora para CPF, CNPJ, matricula, processo, competencia, datas, percentuais e valores monetarios;
-- editor em memoria com undo por tabela;
-- exportacao `.xlsx` com abas tecnicas `_diagnostico` e `_origem`;
-- exportacao `.xlsm` preservando `vbaraw` de um modelo existente;
-- pacote ZIP com planilha, CSVs e artefatos de auditoria;
-- fallback por CDN para bibliotecas publicas, sem enviar o conteudo do PDF.
-
-## Execucao
+### Frontend local
 
 ```text
 BAIXAR_BIBLIOTECAS_WINDOWS.bat
+```
+
+### Backend Node
+
+```text
+cd backend
+npm install
+```
+
+### OCR local
+
+Opcional, mas necessario para `Origem = Hibrido` ou `Origem = OCR`.
+
+```text
+INSTALAR_OCR_WINDOWS.bat
+```
+
+Tambem e necessario ter o Tesseract OCR instalado no Windows e acessivel no `PATH`.
+
+## Como abrir
+
+```text
 ABRIR_APP_WINDOWS.bat
 ```
 
-Ou:
+Ou manualmente:
+
+```text
+npm run start
+```
+
+Aplicacao:
+
+```text
+http://127.0.0.1:8787
+```
+
+## Fluxo
+
+1. Carregue um PDF.
+2. Informe as paginas.
+3. Se precisar, ajuste `Origem` e `Saida` em `Opcoes avancadas`.
+4. Processe.
+5. Exporte em `.xlsx`, `.xlsm` ou `.zip`.
+
+## Saidas
+
+- `.xlsx`: uma aba por tabela, mantendo larguras, alturas, mesclagens e estilos quando disponiveis.
+- `.xlsm`: reaproveita um modelo com VBA e injeta as tabelas extraidas.
+- `.zip`: agrupa a planilha, CSVs por tabela e os artefatos de auditoria.
+
+As planilhas tecnicas incluem:
+
+- `_ocr_auditoria`: por pagina, mostrando se houve texto PDF, OCR aplicado e avisos.
+- `_origem`: itens textuais de origem usados na reconciliacao.
+
+## Testes
 
 ```text
 npm test
 npm run check:syntax
-python server.py
+python -m pytest ocr/tests -q
 ```
-
-## Limites desta versao
-
-- processa apenas PDFs com camada de texto;
-- nao faz OCR;
-- o modo XLSM depende de um modelo real com VBA;
-- o editor prioriza correcoes diretas em memoria, sem gravar alteracoes de volta no PDF.

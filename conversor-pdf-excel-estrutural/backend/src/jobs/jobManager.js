@@ -1,15 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { copyFile, readFile, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { ensureDirectory, removeDirectory } from './jobCleanup.js';
 
-const PROJECT_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
-
 export class JobManager {
   constructor(options = {}) {
-    this.tempRoot = options.tempRoot || resolve(PROJECT_ROOT, 'temp', 'jobs');
+    this.tempRoot = options.tempRoot || buildDefaultTempRoot();
     this.workerPath = options.workerPath || fileURLToPath(new URL('./jobWorker.js', import.meta.url));
     this.jobs = new Map();
   }
@@ -62,6 +61,11 @@ export class JobManager {
   async getTableIr(jobId) {
     const job = this.requireCompletedJob(jobId);
     return JSON.parse(await readFile(job.tableIrPath, 'utf8'));
+  }
+
+  async getDocumentResult(jobId) {
+    const job = this.requireCompletedJob(jobId);
+    return JSON.parse(await readFile(job.resultPath, 'utf8'));
   }
 
   async updateTableIr(jobId, tableIr) {
@@ -294,4 +298,10 @@ function onceExit(worker) {
 
 function mapStageToStatus(stage) {
   return ['failed', 'completed', 'cancelled'].includes(stage) ? stage : 'processing';
+}
+
+function buildDefaultTempRoot() {
+  const fromEnv = process.env.CONVERSOR_TEMP_ROOT;
+  if (fromEnv) return resolve(fromEnv);
+  return join(tmpdir(), 'conversor-pdf-excel-estrutural', 'jobs');
 }

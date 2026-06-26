@@ -1,11 +1,11 @@
 const HTTPS = 'https:' + '//';
 
 const LOCAL = Object.freeze({
-  pdf: 'assets/js/vendor/pdf.min.js',
-  pdfWorker: 'assets/js/vendor/pdf.worker.min.js',
-  excel: 'assets/js/vendor/exceljs.min.js',
-  zip: 'assets/js/vendor/zip-full.min.js',
-  xlsx: 'assets/js/vendor/xlsx.full.min.js',
+  pdf: new URL('./pdf.min.js', import.meta.url).href,
+  pdfWorker: new URL('./pdf.worker.min.js', import.meta.url).href,
+  excel: new URL('./exceljs.min.js', import.meta.url).href,
+  zip: new URL('./zip-full.min.js', import.meta.url).href,
+  xlsx: new URL('./xlsx.full.min.js', import.meta.url).href,
 });
 
 const CDN = Object.freeze({
@@ -75,11 +75,14 @@ export async function checkRuntimeLibraries() {
 async function loadWithFallback({ name, localSrc, remoteSrc, isReady }) {
   if (isReady()) return { library: name, source: 'already-loaded' };
 
-  try {
-    await loadScript(localSrc, `${name}:local`);
-    if (isReady()) return { library: name, source: 'local' };
-  } catch (localError) {
-    console.warn(`${name} local nao carregou. Tentando CDN.`, localError);
+  const hasLocalCopy = shouldTryLocalAssets() && await urlExists(localSrc);
+  if (hasLocalCopy) {
+    try {
+      await loadScript(localSrc, `${name}:local`);
+      if (isReady()) return { library: name, source: 'local' };
+    } catch (localError) {
+      console.warn(`${name} local nao carregou. Tentando CDN.`, localError);
+    }
   }
 
   try {
@@ -141,4 +144,8 @@ async function urlExists(url) {
 function cssEscape(value) {
   if (window.CSS?.escape) return window.CSS.escape(value);
   return String(value).replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function shouldTryLocalAssets() {
+  return window.location.protocol === 'file:';
 }
