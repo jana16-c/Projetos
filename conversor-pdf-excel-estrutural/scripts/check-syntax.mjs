@@ -35,7 +35,7 @@ function walk(directory) {
     const fullPath = join(directory, entry);
     const stats = statSync(fullPath);
     if (stats.isDirectory()) {
-      if (entry === '.git') continue;
+      if (entry === '.git' || entry === 'node_modules' || entry === 'temp') continue;
       files.push(...walk(fullPath));
     } else {
       files.push(fullPath);

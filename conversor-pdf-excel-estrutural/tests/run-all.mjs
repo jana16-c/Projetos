@@ -8,5 +8,6 @@ import './valueClassifier.test.mjs';
 import './xlsm.test.mjs';
 import './contentConservation.test.mjs';
 import './extraction.test.mjs';
+import './backendJobs.test.mjs';
 
 console.log('run-all.mjs OK');
