@@ -11,7 +11,7 @@ export async function buildZipPackage(documentResult, templateFile = null, optio
 
   const writer = new zip.ZipWriter(new zip.BlobWriter('application/zip'));
   const stem = safeFileStem(documentResult.sourceFileName);
-  const xlsx = await buildWorkbook(documentResult);
+  const xlsx = await buildWorkbook(documentResult, options);
 
   await writer.add(`${buildExcelFilename(documentResult.sourceFileName)}`, new zip.BlobReader(xlsx));
 

@@ -1,6 +1,0 @@
-pypdfium2>=4,<6
-opencv-python-headless>=4.10,<5
-pytesseract>=0.3.13,<0.4
-Pillow>=10,<13
-numpy>=1.26,<3
-pytest>=8,<10

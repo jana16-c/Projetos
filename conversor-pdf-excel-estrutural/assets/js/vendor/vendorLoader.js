@@ -6,6 +6,7 @@ const LOCAL = Object.freeze({
   excel: new URL('./exceljs.min.js', import.meta.url).href,
   zip: new URL('./zip-full.min.js', import.meta.url).href,
   xlsx: new URL('./xlsx.full.min.js', import.meta.url).href,
+  tesseract: new URL('./tesseract.min.js', import.meta.url).href,
 });
 
 const CDN = Object.freeze({
@@ -14,6 +15,7 @@ const CDN = Object.freeze({
   excel: HTTPS + 'cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
   zip: HTTPS + 'cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.57/dist/zip-full.min.js',
   xlsx: HTTPS + 'cdn.jsdelivr.net/npm/xlsx@0.20.3/dist/xlsx.full.min.js',
+  tesseract: HTTPS + 'cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
 });
 
 const loadedScripts = new Map();
@@ -63,6 +65,16 @@ export async function ensureSheetJsRuntime() {
   });
 }
 
+export async function ensureTesseractRuntime() {
+  return loadWithFallback({
+    name: 'Tesseract.js',
+    localSrc: LOCAL.tesseract,
+    remoteSrc: CDN.tesseract,
+    isReady: () => Boolean(window.Tesseract),
+    optional: true,
+  });
+}
+
 export async function checkRuntimeLibraries() {
   const results = [];
   results.push(await ensurePdfJsRuntime());
@@ -72,7 +84,7 @@ export async function checkRuntimeLibraries() {
   return results;
 }
 
-async function loadWithFallback({ name, localSrc, remoteSrc, isReady }) {
+async function loadWithFallback({ name, localSrc, remoteSrc, isReady, optional = false }) {
   if (isReady()) return { library: name, source: 'already-loaded' };
 
   const hasLocalCopy = shouldTryLocalAssets() && await urlExists(localSrc);
@@ -90,6 +102,10 @@ async function loadWithFallback({ name, localSrc, remoteSrc, isReady }) {
     if (isReady()) return { library: name, source: 'cdn' };
   } catch (remoteError) {
     console.error(`${name} nao carregou pela CDN.`, remoteError);
+  }
+
+  if (optional) {
+    return { library: name, source: 'unavailable' };
   }
 
   throw new Error(`Nao foi possivel carregar ${name}. Execute BAIXAR_BIBLIOTECAS_WINDOWS.bat ou verifique sua conexao.`);
@@ -147,5 +163,7 @@ function cssEscape(value) {
 }
 
 function shouldTryLocalAssets() {
-  return window.location.protocol === 'file:';
+  if (window.location.protocol === 'file:') return true;
+  const host = String(window.location.hostname || '').toLowerCase();
+  return host === '127.0.0.1' || host === 'localhost';
 }

@@ -4,34 +4,40 @@ const MIN_CONFIDENCE = 0.78;
 const TERMINAL_ROW_RE = /\b(total|subtotal|total geral|fim|encerramento)\b/i;
 
 export function mergeSplitBoundaryRow(previous, current, options = {}) {
-  const previousMatrix = cloneMatrix(previous?.matrix || []);
-  const previousCells = cloneCellGrid(previous?.cells || []);
-  const previousRowMeta = cloneRowMetaList(previous?.rowMeta || []);
-  const currentMatrix = cloneMatrix(current?.matrix || []);
-  const currentCells = cloneCellGrid(current?.cells || []);
-  const currentRowMeta = cloneRowMetaList(current?.rowMeta || []);
+  const previousSourceMatrix = cloneMatrix(previous?.sourceMatrix || previous?.matrix || []);
+  const previousSourceCells = cloneCellGrid(previous?.sourceCells || previous?.cells || []);
+  const previousSourceRowMeta = cloneRowMetaList(previous?.sourceRowMeta || previous?.rowMeta || []);
+  const currentSourceMatrix = cloneMatrix(current?.sourceMatrix || current?.matrix || []);
+  const currentSourceCells = cloneCellGrid(current?.sourceCells || current?.cells || []);
+  const currentSourceRowMeta = cloneRowMetaList(current?.sourceRowMeta || current?.rowMeta || []);
+  const previousMatrix = cloneMatrix(previous?.displayMatrix || previous?.matrix || []);
+  const previousCells = cloneCellGrid(previous?.displayCells || previous?.cells || []);
+  const previousRowMeta = cloneRowMetaList(previous?.displayRowMeta || previous?.rowMeta || []);
+  const currentMatrix = cloneMatrix(current?.displayMatrix || current?.matrix || []);
+  const currentCells = cloneCellGrid(current?.displayCells || current?.cells || []);
+  const currentRowMeta = cloneRowMetaList(current?.displayRowMeta || current?.rowMeta || []);
 
   if (!previousMatrix.length || !currentMatrix.length) {
-    return result(false, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, null);
+    return result(false, previousSourceMatrix, previousSourceCells, previousSourceRowMeta, previousMatrix, previousCells, previousRowMeta, currentSourceMatrix, currentSourceCells, currentSourceRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, null);
   }
 
   const previousRowIndex = previousMatrix.length - 1;
   const currentRowIndex = resolveCurrentBoundaryRowIndex(current, currentRowMeta);
 
   if (currentRowIndex < 0) {
-    return result(false, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, null);
+    return result(false, previousSourceMatrix, previousSourceCells, previousSourceRowMeta, previousMatrix, previousCells, previousRowMeta, currentSourceMatrix, currentSourceCells, currentSourceRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, null);
   }
 
   if (!isNearBottom(previous) || !isNearTop(current)) {
-    return result(false, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, 'Borda entre paginas sem proximidade suficiente.');
+    return result(false, previousSourceMatrix, previousSourceCells, previousSourceRowMeta, previousMatrix, previousCells, previousRowMeta, currentSourceMatrix, currentSourceCells, currentSourceRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, 'Borda entre paginas sem proximidade suficiente.');
   }
 
   if (isHeaderLike(previous, previousRowIndex, previousRowMeta) || isHeaderLike(current, currentRowIndex, currentRowMeta)) {
-    return result(false, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, 'Linha candidata parece cabecalho.');
+    return result(false, previousSourceMatrix, previousSourceCells, previousSourceRowMeta, previousMatrix, previousCells, previousRowMeta, currentSourceMatrix, currentSourceCells, currentSourceRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, 'Linha candidata parece cabecalho.');
   }
 
   if (isTerminalRow(previousMatrix[previousRowIndex]) || isTerminalRow(currentMatrix[currentRowIndex])) {
-    return result(false, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, 'Linha terminal nao deve ser unida.');
+    return result(false, previousSourceMatrix, previousSourceCells, previousSourceRowMeta, previousMatrix, previousCells, previousRowMeta, currentSourceMatrix, currentSourceCells, currentSourceRowMeta, currentMatrix, currentCells, currentRowMeta, null, 0, 'Linha terminal nao deve ser unida.');
   }
 
   const signals = gatherSignals(
@@ -41,11 +47,11 @@ export function mergeSplitBoundaryRow(previous, current, options = {}) {
   );
 
   if (signals.conflict) {
-    return result(false, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, null, signals.confidence, 'Conflito entre colunas da linha dividida.');
+    return result(false, previousSourceMatrix, previousSourceCells, previousSourceRowMeta, previousMatrix, previousCells, previousRowMeta, currentSourceMatrix, currentSourceCells, currentSourceRowMeta, currentMatrix, currentCells, currentRowMeta, null, signals.confidence, 'Conflito entre colunas da linha dividida.');
   }
 
   if (signals.confidence < MIN_CONFIDENCE) {
-    return result(false, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, null, signals.confidence, 'Confianca insuficiente para unir a linha dividida.');
+    return result(false, previousSourceMatrix, previousSourceCells, previousSourceRowMeta, previousMatrix, previousCells, previousRowMeta, currentSourceMatrix, currentSourceCells, currentSourceRowMeta, currentMatrix, currentCells, currentRowMeta, null, signals.confidence, 'Confianca insuficiente para unir a linha dividida.');
   }
 
   const mergedRow = [];
@@ -71,6 +77,10 @@ export function mergeSplitBoundaryRow(previous, current, options = {}) {
     ...(previousRowMeta[previousRowIndex] || {}),
     continuedAcrossPage: true,
     sourcePages: [previous.pageNumber, current.pageNumber],
+    originalRowIds: [
+      ...(previousRowMeta[previousRowIndex]?.originalRowIds || [`${previous.pageNumber}:${previousRowIndex}`]),
+      ...(currentRowMeta[currentRowIndex]?.originalRowIds || [`${current.pageNumber}:${currentRowIndex}`]),
+    ],
   };
 
   currentMatrix.splice(currentRowIndex, 1);
@@ -79,9 +89,15 @@ export function mergeSplitBoundaryRow(previous, current, options = {}) {
 
   return result(
     true,
+    previousSourceMatrix,
+    previousSourceCells,
+    previousSourceRowMeta,
     previousMatrix,
     previousCells,
     previousRowMeta,
+    currentSourceMatrix,
+    currentSourceCells,
+    currentSourceRowMeta,
     currentMatrix,
     currentCells,
     currentRowMeta,
@@ -274,12 +290,35 @@ function cloneRowMetaList(list) {
   }));
 }
 
-function result(merged, previousMatrix, previousCells, previousRowMeta, currentMatrix, currentCells, currentRowMeta, continuedRowIndex, confidence, warning) {
+function result(
+  merged,
+  previousSourceMatrix,
+  previousSourceCells,
+  previousSourceRowMeta,
+  previousMatrix,
+  previousCells,
+  previousRowMeta,
+  currentSourceMatrix,
+  currentSourceCells,
+  currentSourceRowMeta,
+  currentMatrix,
+  currentCells,
+  currentRowMeta,
+  continuedRowIndex,
+  confidence,
+  warning,
+) {
   return {
     merged,
+    previousSourceMatrix,
+    previousSourceCells,
+    previousSourceRowMeta,
     previousMatrix,
     previousCells,
     previousRowMeta,
+    currentSourceMatrix,
+    currentSourceCells,
+    currentSourceRowMeta,
     currentMatrix,
     currentCells,
     currentRowMeta,

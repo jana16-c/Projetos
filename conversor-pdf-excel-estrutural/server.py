@@ -1,6 +1,5 @@
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-import webbrowser
 
 PORT = 8787
 ROOT = Path(__file__).resolve().parent
@@ -15,7 +14,7 @@ if __name__ == "__main__":
     import os
     os.chdir(ROOT)
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Servidor local iniciado em http://localhost:{PORT}")
+    print(f"Servidor local iniciado em http://127.0.0.1:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

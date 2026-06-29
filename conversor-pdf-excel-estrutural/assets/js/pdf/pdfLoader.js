@@ -18,7 +18,8 @@ export async function extractPageTextItems(pdf, pageNumber) {
 
 export async function extractPageTextItemsWithOptions(pdf, pageNumber, options = {}) {
   const page = await pdf.getPage(pageNumber);
-  const viewport = page.getViewport({ scale: 1 });
+  const rotation = Number(page.rotate || 0);
+  const viewport = page.getViewport({ scale: 1, rotation });
   const textContent = await page.getTextContent({
     normalizeWhitespace: false,
     disableCombineTextItems: false,
@@ -30,13 +31,16 @@ export async function extractPageTextItemsWithOptions(pdf, pageNumber, options =
     .map((item, index) => normalizeTextItem(item, index, pageNumber, viewport));
 
   const items = filterItemsByMargins(allItems, viewport, options.ignoreMargins);
+  const filteredOutItems = allItems.filter(item => !items.some(kept => kept.id === item.id));
 
   return {
     pageNumber,
     width: viewport.width,
     height: viewport.height,
+    rotation,
     allItems,
     items,
+    filteredOutItems,
     textLayerDetected: allItems.length >= 3,
     ignoredMargins: normalizeMargins(options.ignoreMargins),
   };
@@ -103,7 +107,7 @@ function normalizeItemBounds(transform, rawWidth, rawHeight, viewport) {
 }
 
 export function filterItemsByMargins(items, viewport, margins) {
-  const normalized = normalizeMargins(margins);
+  const normalized = softenMargins(normalizeMargins(margins));
   if (!items.length) return items;
 
   const left = viewport.width * normalized.left;
@@ -112,14 +116,11 @@ export function filterItemsByMargins(items, viewport, margins) {
   const bottom = viewport.height * (1 - normalized.bottom);
 
   return items.filter(item => {
-    const centerX = item.x + (item.width / 2);
-    const centerY = item.y + (item.height / 2);
-
     return (
-      centerX >= left
-      && centerX <= right
-      && centerY >= top
-      && centerY <= bottom
+      item.right > left
+      && item.x < right
+      && item.bottom > top
+      && item.y < bottom
     );
   });
 }
@@ -130,6 +131,15 @@ function normalizeMargins(margins = {}) {
     bottom: clampPercent(margins.bottom, 0, 0.3),
     left: clampPercent(margins.left, 0, 0.2),
     right: clampPercent(margins.right, 0, 0.2),
+  };
+}
+
+function softenMargins(margins = {}) {
+  return {
+    top: margins.top * 0.5,
+    bottom: margins.bottom * 0.5,
+    left: margins.left * 0.5,
+    right: margins.right * 0.5,
   };
 }
 

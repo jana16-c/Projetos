@@ -2,21 +2,20 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
-where node >nul 2>nul
-if %errorlevel% neq 0 (
-  echo Node.js nao encontrado.
-  pause
-  exit /b 1
+where py >nul 2>nul
+if %errorlevel% equ 0 (
+  start "" http://127.0.0.1:8787
+  py -3 server.py
+  exit /b
 )
 
-if not exist "backend\node_modules" (
-  echo Dependencias do backend nao encontradas em backend\node_modules.
-  echo Execute npm install na pasta backend antes de abrir o app.
-  pause
-  exit /b 1
+where python >nul 2>nul
+if %errorlevel% equ 0 (
+  start "" http://127.0.0.1:8787
+  python server.py
+  exit /b
 )
 
-echo Iniciando backend local...
-start "Conversor PDF Excel Estrutural" cmd /k "cd /d ""%~dp0"" && npm.cmd run start"
-timeout /t 2 >nul
-start "" "http://127.0.0.1:8787"
+echo Python nao encontrado.
+echo Abra a pasta em um servidor estatico local.
+pause

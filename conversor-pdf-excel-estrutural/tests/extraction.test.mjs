@@ -29,8 +29,9 @@ assert.ok(Array.isArray(documentResult.ocr.appliedPages));
 assert.equal(documentResult.validation.contentConservation.valid, true);
 assert.deepEqual(documentResult.validation.contentConservation.duplicated, []);
 assert.deepEqual(documentResult.validation.contentConservation.missing, []);
-assert.equal(documentResult.unassignedTextItems.length, 6);
-assert.deepEqual(documentResult.unassignedTextItems.map(item => item.id), ['1:2:0', '2:0:0', '2:0:1', '2:0:2', '2:0:3', '2:2:0']);
+assert.equal(documentResult.unassignedTextItems.length, 0);
+assert.deepEqual(documentResult.validation.contentConservation.unassignedInsideDetectedTables, []);
+assert.deepEqual(documentResult.validation.contentConservation.visualPagesMissing, []);
 assert.equal(documentResult.tableIr.tables[0].cells[0].id, 'P1_T1_R1C1');
 
 console.log('extraction.test.mjs OK');
@@ -71,5 +72,10 @@ function makePage(pageNumber) {
     items,
     allItems: items,
     textLayerDetected: true,
+    renderedPage: {
+      dataUrl: 'data:image/png;base64,AAA=',
+      displayWidthPx: 794,
+      displayHeightPx: 1123,
+    },
   };
 }

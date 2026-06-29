@@ -126,7 +126,7 @@ function buildPageAnalysis(pageData, settings) {
 }
 
 function finalizePageAnalysis(pageAnalysis, repeatedRows, settings) {
-  const visibleRows = pageAnalysis.rows.filter(row => {
+  const sourceRows = pageAnalysis.rows.map(row => {
     const key = buildRowKey(row);
     const hidden = settings.hideRepeatedLines && repeatedRows.has(key) && !looksLikeTableHeaderRow(row);
     if (hidden) {
@@ -135,10 +135,16 @@ function finalizePageAnalysis(pageAnalysis, repeatedRows, settings) {
         text: row.text,
       });
     }
-    return !hidden;
+
+    return {
+      ...row,
+      isRepeatedHeader: hidden && row.index <= 2,
+      isRepeatedFooter: hidden && row.index >= Math.max(0, pageAnalysis.rows.length - 3),
+      hiddenInCleanView: hidden,
+    };
   });
 
-  const tables = buildTablesForRows(pageAnalysis, visibleRows, settings);
+  const tables = buildTablesForRows(pageAnalysis, sourceRows, settings);
   pageAnalysis.tables = tables;
 
   if (!pageAnalysis.textLayerDetected) {
@@ -190,6 +196,12 @@ function buildTableFromBlock(pageAnalysis, block, index, settings) {
     pageNumber: pageAnalysis.pageNumber,
     tableIndex: index + 1,
     sourcePages: [pageAnalysis.pageNumber],
+    sourceMatrix: modeled.sourceMatrix || modeled.matrix,
+    sourceCells: modeled.sourceCells || typedCells,
+    sourceRowMeta: modeled.sourceRowMeta || modeled.rowMeta,
+    displayMatrix: modeled.displayMatrix || modeled.matrix,
+    displayCells: modeled.displayCells || typedCells,
+    displayRowMeta: modeled.displayRowMeta || modeled.rowMeta,
     matrix: modeled.matrix,
     cells: typedCells,
     rowMeta: modeled.rowMeta,
@@ -199,6 +211,8 @@ function buildTableFromBlock(pageAnalysis, block, index, settings) {
     headerRowIndex: headerInfo.headerRowIndex,
     confidence,
     warnings: [...new Set([...(columnModel.warnings || []), ...(block.warnings || [])])],
+    uncertainRows: block.uncertainRows || [],
+    leftOutRows: block.leftOutRows || [],
     continuedFromPreviousPage: false,
     continuesOnNextPage: false,
     width: pageAnalysis.width,
@@ -304,13 +318,32 @@ function applyKnownStrongModel(matrix, rowMeta, cells) {
   });
 
   if (headerIndex <= 0) {
-    return { matrix, rowMeta, cells };
+    return {
+      sourceMatrix: matrix,
+      sourceRowMeta: rowMeta,
+      sourceCells: cells,
+      displayMatrix: matrix,
+      displayRowMeta: rowMeta,
+      displayCells: cells,
+      matrix,
+      rowMeta,
+      cells,
+    };
   }
 
+  const displayMatrix = matrix.slice(headerIndex);
+  const displayRowMeta = rowMeta.slice(headerIndex);
+  const displayCells = cells.slice(headerIndex);
   return {
-    matrix: matrix.slice(headerIndex),
-    rowMeta: rowMeta.slice(headerIndex),
-    cells: cells.slice(headerIndex),
+    sourceMatrix: matrix,
+    sourceRowMeta: rowMeta,
+    sourceCells: cells,
+    displayMatrix,
+    displayRowMeta,
+    displayCells,
+    matrix: displayMatrix,
+    rowMeta: displayRowMeta,
+    cells: displayCells,
   };
 }
 

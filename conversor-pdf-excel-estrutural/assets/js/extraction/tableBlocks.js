@@ -9,12 +9,15 @@ export function detectTableBlocks(rows, pageWidth) {
   let current = null;
   let separatorBudget = 2;
   let nonTabularStreak = 0;
+  let pendingOutsideRows = [];
 
   for (const row of rows) {
     const analysis = analyzeRow(row, pageWidth);
     if (!current) {
       if (analysis.candidate) {
         current = startBlock(row, analysis);
+      } else {
+        pendingOutsideRows.push({ row, analysis });
       }
       continue;
     }
@@ -23,10 +26,12 @@ export function detectTableBlocks(rows, pageWidth) {
     const gapBreak = verticalGap > medianHeight * 2.2;
 
     if (gapBreak || nonTabularStreak >= 3) {
+      absorbNearbyRows(current, pendingOutsideRows, medianHeight);
       blocks.push(finalizeBlock(current));
       current = analysis.candidate ? startBlock(row, analysis) : null;
       separatorBudget = 1;
       nonTabularStreak = 0;
+      pendingOutsideRows = current ? [] : [{ row, analysis }];
       continue;
     }
 
@@ -37,16 +42,22 @@ export function detectTableBlocks(rows, pageWidth) {
       continue;
     }
 
-    if (separatorBudget > 0 && looksLikeSoftSeparator(row)) {
-      addRowToBlock(current, row, analysis);
+    if (shouldKeepAsUncertainRow(current, row, analysis, medianHeight)) {
+      addRowToBlock(current, row, {
+        ...analysis,
+        score: Math.max(analysis.score, 0.42),
+        uncertain: true,
+      });
       separatorBudget -= 1;
       continue;
     }
 
+    pendingOutsideRows.push({ row, analysis });
     nonTabularStreak += 1;
   }
 
   if (current) {
+    absorbNearbyRows(current, pendingOutsideRows, medianHeight);
     blocks.push(finalizeBlock(current));
   }
 
@@ -96,6 +107,8 @@ function startBlock(row, analysis) {
     scores: [analysis.score],
     candidates: [analysis],
     warnings: [],
+    uncertainRows: [],
+    leftOutRows: [],
     lastMaxY: row.maxY,
     minX: row.xStart,
     maxX: row.xEnd,
@@ -103,12 +116,21 @@ function startBlock(row, analysis) {
 }
 
 function addRowToBlock(block, row, analysis) {
-  block.rows.push(row);
+  const nextRow = {
+    ...row,
+    confidence: round(Math.max(analysis.score || 0, 0.35)),
+    isUncertain: Boolean(analysis.uncertain),
+  };
+
+  block.rows.push(nextRow);
   block.scores.push(analysis.score);
   block.candidates.push(analysis);
-  block.lastMaxY = row.maxY;
-  block.minX = Math.min(block.minX, row.xStart);
-  block.maxX = Math.max(block.maxX, row.xEnd);
+  block.lastMaxY = nextRow.maxY;
+  block.minX = Math.min(block.minX, nextRow.xStart);
+  block.maxX = Math.max(block.maxX, nextRow.xEnd);
+  if (analysis.uncertain) {
+    block.uncertainRows.push(nextRow);
+  }
 }
 
 function finalizeBlock(block) {
@@ -138,6 +160,8 @@ function finalizeBlock(block) {
     rows: block.rows,
     confidence: Math.round(confidence * 100) / 100,
     warnings: block.warnings,
+    uncertainRows: block.uncertainRows,
+    leftOutRows: block.leftOutRows,
     bounds: {
       left: block.minX,
       right: block.maxX,
@@ -149,4 +173,44 @@ function finalizeBlock(block) {
 
 function looksLikeSoftSeparator(row) {
   return row.segments.length <= 1 && row.text.length <= 120;
+}
+
+function shouldKeepAsUncertainRow(block, row, analysis, medianHeight) {
+  if (!block) return false;
+  if (looksLikeSoftSeparator(row) && isNearCurrentBlock(block, row, medianHeight)) return true;
+  if (analysis.segmentCount <= 1 && isInsideExpandedBounds(block, row, 18)) return true;
+  return false;
+}
+
+function absorbNearbyRows(block, pendingRows, medianHeight) {
+  if (!block) return;
+
+  const stillOutside = [];
+  for (const entry of pendingRows) {
+    if (isInsideExpandedBounds(block, entry.row, 22) && isNearCurrentBlock(block, entry.row, medianHeight * 1.4)) {
+      addRowToBlock(block, entry.row, {
+        ...entry.analysis,
+        score: Math.max(entry.analysis.score || 0.35, 0.38),
+        uncertain: true,
+      });
+      continue;
+    }
+
+    stillOutside.push(entry.row);
+  }
+
+  block.leftOutRows.push(...stillOutside);
+}
+
+function isInsideExpandedBounds(block, row, padding) {
+  return row.xStart <= (block.maxX + padding) && row.xEnd >= (block.minX - padding);
+}
+
+function isNearCurrentBlock(block, row, maxGap) {
+  const gap = Math.max(0, row.minY - block.lastMaxY);
+  return gap <= maxGap;
+}
+
+function round(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
 }

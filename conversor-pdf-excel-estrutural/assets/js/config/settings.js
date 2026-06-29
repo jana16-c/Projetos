@@ -2,7 +2,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   pageSpec: '',
   mode: 'automatic',
   sourceMode: 'auto',
-  outputMode: 'visual-replica',
+  outputMode: 'clean-table',
   rowTolerance: 0.62,
   columnTolerance: 9,
   gapFactor: 2.3,

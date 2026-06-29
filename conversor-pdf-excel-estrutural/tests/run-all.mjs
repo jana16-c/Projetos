@@ -12,7 +12,7 @@ import './valueClassifier.test.mjs';
 import './xlsm.test.mjs';
 import './contentConservation.test.mjs';
 import './extraction.test.mjs';
-import './backendJobs.test.mjs';
 import './reconcileItems.test.mjs';
+import './workbookVisuals.test.mjs';
 
 console.log('run-all.mjs OK');

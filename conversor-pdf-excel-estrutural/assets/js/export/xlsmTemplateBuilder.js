@@ -1,6 +1,7 @@
 import { safeFileStem } from '../utils/download.js';
 import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js';
 import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js';
+import { buildAuditRows, buildUnassignedRows } from './workbookBuilder.js';
 
 const MAX_XLSM_SOURCE_AUDIT_ROWS = 5000;
 
@@ -87,38 +88,23 @@ export function buildExtractionSheets(XLSX, documentResult, options = {}) {
   }
 
   const diagnosticRows = [
-    ['Pagina', 'Tabelas', 'Linhas', 'Colunas', 'Confianca', 'Avisos'],
-    ...documentResult.pageDiagnostics.map(diagnostic => [
-      diagnostic.pageNumber,
-      diagnostic.tables,
-      diagnostic.rows,
-      diagnostic.columns,
-      diagnostic.confidence,
-      diagnostic.warnings.join(' | '),
-    ]),
+    ['Pagina', 'Itens texto', 'Itens associados', 'Itens nao associados', 'Ultimo Y fonte', 'Ultimo Y exportado', 'Itens zona inferior', 'Zona inferior editavel', 'OCR aplicado', 'Imagem visual', 'Status', 'Avisos'],
+    ...buildAuditRows(documentResult),
   ];
   const diagnosticSheet = XLSX.utils.aoa_to_sheet(diagnosticRows);
   diagnosticSheet['!cols'] = buildCols(diagnosticRows);
   sheets.push({ name: safeSheetName('EXTRACAO_DIAGNOSTICO'), sheet: diagnosticSheet });
 
-  const ocrRows = [
-    ['Pagina', 'Texto PDF', 'OCR aplicado', 'Imagem', 'Modo', 'Motivo', 'Avisos'],
-    ...(documentResult.pages || []).map(page => ([
-      page.pageNumber,
-      page.textLayerDetected ? 'sim' : 'nao',
-      page.ocrApplied ? 'sim' : 'nao',
-      page.imageAvailable ? 'sim' : 'nao',
-      page.diagnostics?.sourceMode || '',
-      page.diagnostics?.reason || '',
-      (page.diagnostics?.ocrWarnings || []).join(' | '),
-    ])),
+  const unassignedRows = [
+    ['ID', 'Pagina', 'Texto', 'X', 'Y', 'Largura', 'Altura', 'Dentro tabela', 'Tabelas', 'Zona inferior', 'Filtrado por margem'],
+    ...buildUnassignedRows(documentResult),
   ];
-  const ocrSheet = XLSX.utils.aoa_to_sheet(ocrRows);
-  ocrSheet['!cols'] = buildCols(ocrRows);
-  sheets.push({ name: safeSheetName('EXTRACAO_OCR_AUDITORIA'), sheet: ocrSheet });
+  const unassignedSheet = XLSX.utils.aoa_to_sheet(unassignedRows);
+  unassignedSheet['!cols'] = buildCols(unassignedRows);
+  sheets.push({ name: safeSheetName('EXTRACAO_NAO_ASSOCIADOS'), sheet: unassignedSheet });
 
   const sourceRows = [
-    ['ID', 'Pagina', 'Texto', 'Texto bruto', 'X', 'Y', 'Largura', 'Altura'],
+    ['ID', 'Pagina', 'Texto', 'Texto bruto', 'X', 'Y', 'Largura', 'Altura', 'Right', 'Bottom', 'Filtrado'],
   ];
 
   const maxSourceRows = Number(options.maxSourceAuditRows || MAX_XLSM_SOURCE_AUDIT_ROWS);
@@ -133,12 +119,15 @@ export function buildExtractionSheets(XLSX, documentResult, options = {}) {
       item.y,
       item.width,
       item.height,
+      item.right,
+      item.bottom,
+      item.filteredOut ? 'sim' : 'nao',
     ])));
   } else {
     sourceRows.push(
-      ['_resumo', '', 'Aba detalhada omitida no XLSM para evitar travamento.', '', '', '', '', ''],
-      ['_itens_origem', sourceItems.length, '', '', '', '', '', ''],
-      ['_limite_xlsm', maxSourceRows, '', '', '', '', '', ''],
+      ['_resumo', '', 'Aba detalhada omitida no XLSM para evitar travamento.', '', '', '', '', '', '', '', ''],
+      ['_itens_origem', sourceItems.length, '', '', '', '', '', '', '', '', ''],
+      ['_limite_xlsm', maxSourceRows, '', '', '', '', '', '', '', '', ''],
     );
   }
 

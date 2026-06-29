@@ -1,37 +1,19 @@
 # Processador de Tabelas de Processos Trabalhistas
 
-Aplicativo local para converter PDFs em planilhas estruturadas, com modo textual, OCR opcional e exportacao visual mais fiel quando a rota backend esta ativa.
+Aplicativo local para converter PDFs em planilhas estruturadas, mantendo processamento e exportacao 100% no navegador.
 
 ## Arquitetura
 
-- `index.html` + `assets/js/*`: interface local, selecao de paginas, disparo do processamento e exportacao XLSX/XLSM/ZIP.
-- `backend/src/*`: backend Fastify que recebe o PDF, cria jobs, executa OCR quando necessario e devolve `document-result` e `table-ir`.
-- `ocr/*`: sidecar Python local para renderizacao de pagina, OCR Tesseract, deteccao de grade e estilos visuais.
+- `index.html` + `assets/js/*`: interface local, selecao de paginas, processamento no navegador e exportacao XLSX/XLSM/ZIP.
+- `server.py`: servidor estatico simples para abrir o app em `127.0.0.1:8787`.
 
 ## Como instalar
-
-### Frontend local
 
 ```text
 BAIXAR_BIBLIOTECAS_WINDOWS.bat
 ```
 
-### Backend Node
-
-```text
-cd backend
-npm install
-```
-
-### OCR local
-
-Opcional, mas necessario para `Origem = Hibrido` ou `Origem = OCR`.
-
-```text
-INSTALAR_OCR_WINDOWS.bat
-```
-
-Tambem e necessario ter o Tesseract OCR instalado no Windows e acessivel no `PATH`.
+Node nao e necessario para executar o aplicativo. Ele permanece apenas para testes e verificacao de sintaxe.
 
 ## Como abrir
 
@@ -42,13 +24,7 @@ ABRIR_APP_WINDOWS.bat
 Ou manualmente:
 
 ```text
-npm run start
-```
-
-Aplicacao:
-
-```text
-http://127.0.0.1:8787
+py -3 server.py
 ```
 
 ## Fluxo
@@ -61,19 +37,13 @@ http://127.0.0.1:8787
 
 ## Saidas
 
-- `.xlsx`: uma aba por tabela, mantendo larguras, alturas, mesclagens e estilos quando disponiveis.
-- `.xlsm`: reaproveita um modelo com VBA e injeta as tabelas extraidas.
+- `.xlsx`: abas visuais por pagina, abas editaveis por tabela, `_auditoria`, `_itens_nao_associados` e `_origem`.
+- `.xlsm`: reaproveita um modelo com VBA e injeta as tabelas extraidas e auditorias textuais.
 - `.zip`: agrupa a planilha, CSVs por tabela e os artefatos de auditoria.
-
-As planilhas tecnicas incluem:
-
-- `_ocr_auditoria`: por pagina, mostrando se houve texto PDF, OCR aplicado e avisos.
-- `_origem`: itens textuais de origem usados na reconciliacao.
 
 ## Testes
 
 ```text
 npm test
 npm run check:syntax
-python -m pytest ocr/tests -q
 ```

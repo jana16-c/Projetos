@@ -9,13 +9,13 @@ import {
 } from '../utils/pageSelection.js';
 import { runPageSelectionSelfTest } from '../utils/pageSelection.test.js';
 import { downloadBlob } from '../utils/download.js';
-import { loadPdfDocument, extractPageTextItemsWithOptions } from '../pdf/pdfLoader.js';
+import { loadPdfDocument } from '../pdf/pdfLoader.js';
 import { extractDocumentTables } from '../extraction/tableExtractor.js';
 import { buildXlsxExport, buildXlsmExport, buildZipExport } from '../export/exportService.js';
 import { StatusView } from './status.js';
 import { DEFAULT_SETTINGS } from '../config/settings.js';
 import { checkRuntimeLibraries } from '../vendor/vendorLoader.js';
-import { processPdfWithBackend } from './backendClient.js';
+import { processDocumentInBrowser } from '../processing/browserProcessor.js';
 import {
   addTableColumn,
   addTableRow,
@@ -274,8 +274,15 @@ export class AppController {
       this.status.set('Processando...', 1);
       this.writeTest(`SELECAO USADA NO PROCESSAMENTO\n${summary}\nLista interna: [${formatPageList(pages, 200)}]`, true);
 
-      const backendResult = await this.tryBackendProcessing(settings);
-      this.documentResult = backendResult?.documentResult || await this.processLocally(settings, pages);
+      this.documentResult = await processDocumentInBrowser({
+        pdf: this.pdf,
+        file: this.file,
+        settings,
+        pages,
+        onProgress: progress => {
+          this.status.set(progress.message || mapStageLabel(progress.stage), progress.progress);
+        },
+      });
 
       this.status.showMetrics(this.documentResult);
       this.status.set('Convertido.', 100);
@@ -294,52 +301,11 @@ export class AppController {
     }
   }
 
-  async tryBackendProcessing(settings) {
-    try {
-      return await processPdfWithBackend({
-        file: this.file,
-        settings,
-        onProgress: progress => {
-          this.status.set(progress.message || mapStageLabel(progress.stage), progress.progress);
-        },
-      });
-    } catch (error) {
-      if (error?.code !== 'BACKEND_UNAVAILABLE') throw error;
-      this.writeTest('Backend indisponivel. Processamento local usado como fallback.');
-      this.status.set('Backend indisponivel. Usando modo local...', 5);
-      return null;
-    }
-  }
-
-  async processLocally(settings, pages) {
-    const pagesData = [];
-
-    for (let index = 0; index < pages.length; index++) {
-      const pageNumber = pages[index];
-      this.status.set(`Processando ${index + 1}/${pages.length}...`, Math.round((index / pages.length) * 90));
-      pagesData.push(await extractPageTextItemsWithOptions(this.pdf, pageNumber, {
-        ignoreMargins: {
-          top: settings.ignoreTopPct / 100,
-          bottom: settings.ignoreBottomPct / 100,
-          left: settings.ignoreLeftPct / 100,
-          right: settings.ignoreRightPct / 100,
-        },
-      }));
-    }
-
-    return extractDocumentTables({
-      pagesData,
-      settings,
-      sourceFileName: this.file.name,
-      totalPages: this.pdf.numPages,
-    });
-  }
-
   async exportXlsx() {
     if (!this.documentResult) return;
     try {
       this.status.set('Exportando...', 40);
-      const result = await buildXlsxExport(this.documentResult);
+      const result = await buildXlsxExport(this.documentResult, this.getExportOptions());
       downloadBlob(result.blob, result.filename);
       this.status.set('Pronto!', 100);
     } catch (error) {
@@ -367,6 +333,7 @@ export class AppController {
     try {
       this.status.set('Exportando...', 40);
       const result = await buildZipExport(this.documentResult, this.templateFile, {
+        ...this.getExportOptions(),
         includeXlsmInZip: this.documentResult.settings.includeXlsmInZip,
       });
       downloadBlob(result.blob, result.filename);
@@ -496,6 +463,12 @@ export class AppController {
     } else {
       this.testOutput.textContent += `\n\n${message}`;
     }
+  }
+
+  getExportOptions() {
+    return {
+      outputMode: readValue('#outputMode', this.documentResult?.settings?.outputMode || DEFAULT_SETTINGS.outputMode),
+    };
   }
 }
 

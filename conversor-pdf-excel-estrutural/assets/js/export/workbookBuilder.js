@@ -1,8 +1,9 @@
 import { safeFileStem } from '../utils/download.js';
+import { getRuntimePages } from '../model/resultModel.js';
 import { ensureExcelJsRuntime } from '../vendor/vendorLoader.js';
 import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js';
 
-export async function buildWorkbook(documentResult) {
+export async function buildWorkbook(documentResult, options = {}) {
   await ensureExcelJsRuntime();
 
   const workbook = new ExcelJS.Workbook();
@@ -11,42 +12,143 @@ export async function buildWorkbook(documentResult) {
   workbook.modified = new Date();
 
   addTableSheets(workbook, documentResult);
-  addAuditSheets(workbook, documentResult);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+export function buildVisualSheetSpecs(documentResult) {
+  return getRuntimePages(documentResult)
+    .filter(page => documentResult.selectedPages.includes(page.pageNumber))
+    .sort((left, right) => left.pageNumber - right.pageNumber)
+    .map(page => ({
+      pageNumber: page.pageNumber,
+      sheetName: `Visual_P${String(page.pageNumber).padStart(3, '0')}`,
+      imageAvailable: Boolean(page.renderedPage?.dataUrl),
+      displayWidthPx: Number(page.renderedPage?.displayWidthPx || 0),
+      displayHeightPx: Number(page.renderedPage?.displayHeightPx || 0),
+      rotation: Number(page.rotation || 0),
+    }));
+}
+
+export function buildWorkbookSheetPlan(documentResult, options = {}) {
+  const dataSheets = (documentResult.tables || []).map((table, index) => ({
+    type: 'data',
+    sheetName: buildTableSheetName(table, index),
+  }));
+  return [...dataSheets];
+}
+
+export function buildAuditRows(documentResult) {
+  return (documentResult.pages || []).map(page => ([
+    page.pageNumber,
+    page.textItems,
+    page.assignedItems,
+    page.unassignedItems,
+    page.lastSourceBottom,
+    page.lastAssignedBottom,
+    page.bottomZoneSourceCount,
+    page.bottomZoneAssignedCount,
+    page.ocrApplied ? 'sim' : 'nao',
+    page.visualGenerated ? 'sim' : 'nao',
+    page.status,
+    (page.warnings || []).join(' | '),
+  ]));
+}
+
+export function buildUnassignedRows(documentResult) {
+  return (documentResult.unassignedTextItems || []).map(item => ([
+    item.id,
+    item.pageNumber,
+    item.text || '',
+    item.x,
+    item.y,
+    item.width,
+    item.height,
+    item.insideDetectedTable ? 'sim' : 'nao',
+    (item.tableIds || []).join(', '),
+    item.inBottomZone ? 'sim' : 'nao',
+    item.filteredOut ? 'sim' : 'nao',
+  ]));
+}
+
+function addVisualSheets(workbook, documentResult) {
+  const usedNames = new Set();
+
+  for (const spec of buildVisualSheetSpecs(documentResult)) {
+    const sheetName = uniqueSheetName(spec.sheetName, usedNames);
+    const worksheet = workbook.addWorksheet(sheetName, {
+      views: [{ showGridLines: false, zoomScale: 100 }],
+    });
+    worksheet.properties.defaultRowHeight = 15;
+    worksheet.getColumn(1).width = 2;
+    worksheet.getRow(1).height = Math.max(15, Math.round(spec.displayHeightPx * 0.75));
+
+    const page = getRuntimePages(documentResult).find(item => item.pageNumber === spec.pageNumber);
+    if (!page?.renderedPage?.dataUrl) {
+      worksheet.getCell('A1').value = `Pagina ${spec.pageNumber} sem imagem visual.`;
+      continue;
+    }
+
+    const imageId = workbook.addImage({
+      base64: page.renderedPage.dataUrl,
+      extension: 'png',
+    });
+
+    worksheet.addImage(imageId, {
+      tl: { col: 0, row: 0 },
+      ext: {
+        width: page.renderedPage.displayWidthPx,
+        height: page.renderedPage.displayHeightPx,
+      },
+      editAs: 'oneCell',
+    });
+  }
 }
 
 function addTableSheets(workbook, documentResult) {
   const usedNames = new Set();
 
   documentResult.tables.forEach((table, index) => {
+    const renderable = buildRenderableTable(table);
     const sheetName = uniqueSheetName(buildTableSheetName(table, index), usedNames);
     const worksheet = workbook.addWorksheet(sheetName, {
       views: [{
         state: 'frozen',
-        ySplit: Number.isInteger(table.headerRowIndex) && table.headerRowIndex >= 0 ? table.headerRowIndex + 1 : 0,
+        showGridLines: true,
+        ySplit: Number.isInteger(renderable.headerRowIndex) && renderable.headerRowIndex >= 0 ? renderable.headerRowIndex + 1 : 0,
       }],
     });
-    writeTable(worksheet, table);
+    writeTable(worksheet, table, renderable);
   });
 }
 
-function addAuditSheets(workbook, documentResult) {
-  writeOcrAuditSheet(workbook.addWorksheet('_ocr_auditoria'), documentResult);
-  writeSourceSheet(workbook.addWorksheet('_origem'), documentResult);
-}
-
-function writeTable(worksheet, table) {
-  const renderable = buildRenderableTable(table);
+function writeTable(worksheet, table, renderable = buildRenderableTable(table)) {
   const columnCount = Math.max(1, ...renderable.matrix.map(row => row.length));
-  const rowHeights = deriveRowHeights(table, renderable.matrix.length);
-  const columnWidths = deriveColumnWidths(table, columnCount);
+  const layoutTable = {
+    ...table,
+    displayMatrix: renderable.matrix,
+    displayCells: renderable.cells,
+    displayRowMeta: renderable.rowMeta,
+    matrix: renderable.matrix,
+    cells: renderable.cells,
+    rowMeta: renderable.rowMeta,
+    headerRowIndex: renderable.headerRowIndex,
+  };
+  const rowHeights = deriveRowHeights(layoutTable, renderable.matrix.length);
+  const columnWidths = deriveColumnWidths(layoutTable, columnCount);
 
   worksheet.properties.defaultRowHeight = 15;
+  worksheet.properties.defaultColWidth = 12;
   applyColumnWidths(worksheet, columnWidths, columnCount);
-  writeTableMatrix(worksheet, table, renderable, rowHeights, 1);
-  applyMerges(worksheet, buildTableMerges(table, renderable), 1);
+  writeTableMatrix(worksheet, layoutTable, renderable, rowHeights, 1);
+  applyMerges(worksheet, buildTableMerges(layoutTable, renderable), 1);
+  if (renderable.headerRowIndex >= 0 && renderable.matrix[renderable.headerRowIndex]?.length) {
+    worksheet.autoFilter = {
+      from: { row: renderable.headerRowIndex + 1, column: 1 },
+      to: { row: renderable.headerRowIndex + 1, column: renderable.matrix[renderable.headerRowIndex].length },
+    };
+  }
 }
 
 function writeTableMatrix(worksheet, sourceTable, renderable, rowHeights, startRow) {
@@ -73,58 +175,12 @@ function writeTableMatrix(worksheet, sourceTable, renderable, rowHeights, startR
       }
     }
   }
-}
-
-function writeOcrAuditSheet(worksheet, documentResult) {
-  const headers = ['Pagina', 'Texto PDF', 'OCR aplicado', 'Imagem', 'Modo', 'Motivo', 'Avisos'];
-  const rows = (documentResult.pages || []).map(page => ([
-    page.pageNumber,
-    page.textLayerDetected ? 'sim' : 'nao',
-    page.ocrApplied ? 'sim' : 'nao',
-    page.imageAvailable ? 'sim' : 'nao',
-    page.diagnostics?.sourceMode || '',
-    page.diagnostics?.reason || '',
-    (page.diagnostics?.ocrWarnings || []).join(' | '),
-  ]));
-
-  writeAuditMatrix(worksheet, headers, rows, [10, 12, 14, 10, 12, 32, 48]);
-}
-
-function writeSourceSheet(worksheet, documentResult) {
-  const headers = ['ID', 'Pagina', 'Texto', 'Texto bruto', 'X', 'Y', 'Largura', 'Altura'];
-  const rows = (documentResult.sourceItems || []).map(item => ([
-    item.id,
-    item.pageNumber,
-    item.text || '',
-    item.rawText || '',
-    item.x,
-    item.y,
-    item.width,
-    item.height,
-  ]));
-
-  writeAuditMatrix(worksheet, headers, rows, [22, 10, 36, 36, 10, 10, 12, 12]);
-}
-
-function writeAuditMatrix(worksheet, headers, rows, widths = []) {
-  worksheet.addRow(headers);
-  rows.forEach(row => worksheet.addRow(row));
-  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
-  applyColumnWidths(worksheet, widths, headers.length);
 
   worksheet.eachRow((row, rowNumber) => {
-    row.height = rowNumber === 1 ? 18 : 15;
     row.eachCell(cell => {
-      cell.alignment = {
-        vertical: 'middle',
-        horizontal: rowNumber === 1 ? 'center' : 'left',
-        wrapText: true,
-      };
-      cell.font = rowNumber === 1
-        ? { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF102033' } }
-        : { name: 'Calibri', size: 9, color: { argb: 'FF111827' } };
-      cell.fill = rowNumber === 1 ? solid('FFE9F1FB') : noFill();
-      cell.border = thinBorder('FFD0D7E2');
+      if (rowNumber === startRow + renderable.headerRowIndex) {
+        cell.fill = cell.fill?.pattern === 'none' ? solid('FFF3F4F6') : cell.fill;
+      }
     });
   });
 }
@@ -201,20 +257,7 @@ function fallbackBorder(table, rowMeta, rowIndex, columnIndex, maxCols) {
 }
 
 function buildTableSheetName(table, index) {
-  const preferred = firstMeaningfulLabel(table)
-    || `Pagina_${table.pageNumber}_Tabela_${table.tableIndex || index + 1}`;
-  return safeSheetName(preferred);
-}
-
-function firstMeaningfulLabel(table) {
-  const titleRow = table.matrix?.find((row, rowIndex) => table.rowMeta?.[rowIndex]?.isTitle);
-  const headerRow = Number.isInteger(table.headerRowIndex) && table.headerRowIndex >= 0
-    ? table.matrix?.[table.headerRowIndex]
-    : null;
-  const titleText = (titleRow || []).join(' ').trim();
-  if (titleText) return titleText;
-  const headerText = (headerRow || []).join(' ').trim();
-  return headerText || '';
+  return safeSheetName(`Dados_T${String(index + 1).padStart(3, '0')}`);
 }
 
 function applyMerges(worksheet, merges, startRow) {

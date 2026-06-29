@@ -2,10 +2,10 @@ import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js';
 import { buildXlsmFromTemplate, buildXlsmFilename } from './xlsmTemplateBuilder.js';
 import { buildZipPackage, buildZipFilename } from './zipBuilder.js';
 
-export async function buildXlsxExport(documentResult) {
+export async function buildXlsxExport(documentResult, options = {}) {
   return {
     filename: buildExcelFilename(documentResult.sourceFileName),
-    blob: await buildWorkbook(documentResult),
+    blob: await buildWorkbook(documentResult, options),
   };
 }
 

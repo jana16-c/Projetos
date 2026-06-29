@@ -37,12 +37,9 @@ export function reindexTables(tables = []) {
 
 export function collectWarnings(documentResult) {
   const warnings = [];
-  for (const diagnostic of documentResult.pageDiagnostics || []) {
-    warnings.push(...(diagnostic.warnings || []));
-  }
-  for (const table of documentResult.tables || []) {
-    warnings.push(...(table.warnings || []));
-  }
+  for (const diagnostic of documentResult.pageDiagnostics || []) warnings.push(...(diagnostic.warnings || []));
+  for (const page of documentResult.pages || []) warnings.push(...(page.warnings || []));
+  for (const table of documentResult.tables || []) warnings.push(...(table.warnings || []));
   warnings.push(...(documentResult.validation?.contentConservation?.warnings || []));
   return [...new Set(warnings.filter(Boolean))];
 }
@@ -55,21 +52,34 @@ export function refreshDocumentResultDerivedState(documentResult) {
     selectedPages: [...(documentResult.selectedPages || [])],
   };
 
-  documentResult.sourceItems = readInternalValue(documentResult, '_sourceItems', []).map(item => ({ ...item }));
-  documentResult.pages = readInternalValue(documentResult, '_pages', []).map(page => ({ ...page }));
-  documentResult.ocr = buildOcrState(documentResult);
-  documentResult.unassignedTextItems = collectUnassignedTextItems(
-    documentResult.sourceItems,
-    documentResult.tables,
-  );
-  documentResult.validation = {
-    contentConservation: validateContentConservation(
-      documentResult.sourceItems,
-      documentResult.tables,
-      documentResult.unassignedTextItems,
-    ),
+  const sourceItems = readInternalValue(documentResult, '_sourceItems', []).map(item => ({ ...item }));
+  const runtimePages = readInternalValue(documentResult, '_pages', []).map(page => ({ ...page }));
+  const tableBoundsIndex = buildTableBoundsIndex(documentResult.tables);
+  const unassignedTextItems = collectUnassignedTextItems(sourceItems, documentResult.tables, runtimePages, tableBoundsIndex);
+  const validation = {
+    contentConservation: validateContentConservation({
+      sourceItems,
+      tables: documentResult.tables,
+      unassignedTextItems,
+      pages: runtimePages,
+      tableBoundsIndex,
+    }),
   };
-  documentResult.contentConservation = documentResult.validation.contentConservation;
+  const pages = buildPageStates({
+    pages: runtimePages,
+    sourceItems,
+    tables: documentResult.tables,
+    unassignedTextItems,
+    validation: validation.contentConservation,
+    tableBoundsIndex,
+  });
+
+  documentResult.sourceItems = sourceItems;
+  documentResult.pages = pages;
+  documentResult.ocr = buildOcrState(documentResult);
+  documentResult.unassignedTextItems = unassignedTextItems;
+  documentResult.validation = validation;
+  documentResult.contentConservation = validation.contentConservation;
   documentResult.warnings = collectWarnings(documentResult);
   documentResult.tableIr = buildTableIr(documentResult);
   return documentResult;
@@ -87,28 +97,63 @@ export function hydrateDocumentResult(serialized = {}) {
     createdAt: serialized.createdAt || new Date().toISOString(),
   };
 
-  defineInternalValue(documentResult, '_sourceItems', Array.isArray(serialized.sourceItems) ? serialized.sourceItems.map(item => ({ ...item })) : []);
-  defineInternalValue(documentResult, '_pages', Array.isArray(serialized.pages) ? serialized.pages.map(page => ({ ...page })) : []);
+  defineInternalValue(
+    documentResult,
+    '_sourceItems',
+    Array.isArray(serialized.sourceItems) ? serialized.sourceItems.map(item => ({ ...item })) : [],
+  );
+  defineInternalValue(
+    documentResult,
+    '_pages',
+    Array.isArray(serialized.pages) ? serialized.pages.map(page => ({ ...page })) : [],
+  );
 
   return refreshDocumentResultDerivedState(documentResult);
 }
 
-export function validateContentConservation(sourceItems = [], tables = [], unassignedTextItems = []) {
-  const knownIds = new Set(sourceItems.map(item => item.id));
-  const usages = new Map();
+export function attachRuntimePageArtifacts(documentResult, pagesData = []) {
+  const currentPages = readInternalValue(documentResult, '_pages', []);
+  const byPage = new Map(currentPages.map(page => [page.pageNumber, { ...page }]));
 
-  for (const table of tables) {
-    for (const row of table.cells || []) {
-      for (const cell of row || []) {
-        for (const id of cell?.sourceItemIds || []) {
-          usages.set(id, (usages.get(id) || 0) + 1);
-        }
-      }
-    }
+  for (const page of pagesData) {
+    const current = byPage.get(page.pageNumber) || {};
+    byPage.set(page.pageNumber, {
+      ...current,
+      pageNumber: page.pageNumber,
+      widthPt: round(page.width ?? current.widthPt),
+      heightPt: round(page.height ?? current.heightPt),
+      rotation: Number(page.rotation ?? current.rotation ?? 0),
+      textLayerDetected: Boolean(page.textLayerDetected ?? current.textLayerDetected),
+      ocrApplied: Boolean(page.ocrApplied ?? current.ocrApplied),
+      imageAvailable: Boolean(page.renderedPage?.dataUrl),
+      visualGenerated: Boolean(page.renderedPage?.dataUrl),
+      diagnostics: page.diagnostics || current.diagnostics || null,
+      renderedPage: page.renderedPage ? { ...page.renderedPage } : current.renderedPage || null,
+    });
   }
 
+  defineInternalValue(documentResult, '_pages', [...byPage.values()].sort((left, right) => left.pageNumber - right.pageNumber));
+  return refreshDocumentResultDerivedState(documentResult);
+}
+
+export function getRuntimePages(documentResult) {
+  return readInternalValue(documentResult, '_pages', []).map(page => ({ ...page }));
+}
+
+export function validateContentConservation(sourceOrOptions = [], tables = [], unassignedTextItems = [], pages = [], tableBoundsIndex = null) {
+  const options = Array.isArray(sourceOrOptions)
+    ? { sourceItems: sourceOrOptions, tables, unassignedTextItems, pages, tableBoundsIndex }
+    : sourceOrOptions;
+  const sourceItems = options.sourceItems || [];
+  const safeTables = options.tables || [];
+  const safeUnassigned = options.unassignedTextItems || [];
+  const safePages = options.pages || [];
+  const boundsIndex = options.tableBoundsIndex || buildTableBoundsIndex(safeTables);
+  const knownIds = new Set(sourceItems.map(item => item.id));
+  const usages = collectItemUsages(safeTables);
+
   const unassignedCounts = new Map();
-  for (const item of unassignedTextItems) {
+  for (const item of safeUnassigned) {
     if (!item?.id) continue;
     unassignedCounts.set(item.id, (unassignedCounts.get(item.id) || 0) + 1);
   }
@@ -122,20 +167,41 @@ export function validateContentConservation(sourceItems = [], tables = [], unass
     .filter(item => !usages.has(item.id) && !unassignedCounts.has(item.id))
     .map(item => item.id);
   const unknownUnassigned = [...unassignedCounts.keys()].filter(id => !knownIds.has(id));
+  const unassignedInsideDetectedTables = safeUnassigned
+    .filter(item => (item.tableIds || []).length > 0)
+    .map(item => item.id);
+  const bottomZoneMissing = safeUnassigned
+    .filter(item => item.inBottomZone && (item.tableIds || []).length > 0)
+    .map(item => item.id);
+  const visualPagesMissing = safePages
+    .filter(page => !page.visualGenerated)
+    .map(page => page.pageNumber);
   const warnings = [];
 
   if (duplicated.length) warnings.push(`Itens de origem duplicados: ${duplicated.length}.`);
   if (missing.length) warnings.push(`Itens de origem ausentes: ${missing.length}.`);
   if (unknownUnassigned.length) warnings.push(`Itens nao associados sem origem conhecida: ${unknownUnassigned.length}.`);
+  if (unassignedInsideDetectedTables.length) warnings.push(`Itens nao associados dentro de area tabular: ${unassignedInsideDetectedTables.length}.`);
+  if (bottomZoneMissing.length) warnings.push(`Itens nao associados na zona inferior tabular: ${bottomZoneMissing.length}.`);
+  if (visualPagesMissing.length) warnings.push(`Paginas visuais nao geradas: ${visualPagesMissing.join(', ')}.`);
 
   return {
-    valid: duplicated.length === 0 && missing.length === 0 && unknownUnassigned.length === 0,
+    valid: duplicated.length === 0
+      && missing.length === 0
+      && unknownUnassigned.length === 0
+      && unassignedInsideDetectedTables.length === 0
+      && bottomZoneMissing.length === 0
+      && visualPagesMissing.length === 0,
     duplicated,
     missing,
     unknownUnassigned,
+    unassignedInsideDetectedTables,
+    bottomZoneMissing,
+    visualPagesMissing,
     assignedCount: usages.size,
     unassignedCount: unassignedCounts.size,
     warnings,
+    tableBoundsIndex: boundsIndex,
   };
 }
 
@@ -156,8 +222,10 @@ function cacheInternalSourceState(documentResult, pagesData = []) {
     rotation: Number(page.rotation || 0),
     textLayerDetected: Boolean(page.textLayerDetected),
     ocrApplied: Boolean(page.ocrApplied),
-    imageAvailable: Boolean(page.imagePath),
+    imageAvailable: Boolean(page.renderedPage?.dataUrl),
+    visualGenerated: Boolean(page.renderedPage?.dataUrl),
     diagnostics: page.diagnostics || null,
+    renderedPage: page.renderedPage ? { ...page.renderedPage } : null,
   })));
 }
 
@@ -166,6 +234,8 @@ function collectSourceItems(pagesData = []) {
   const items = [];
 
   for (const page of pagesData) {
+    const filteredOutIds = new Set((page.filteredOutItems || []).map(item => item.id));
+
     for (const item of page.allItems || page.items || []) {
       if (!item?.id || seen.has(item.id)) continue;
       seen.add(item.id);
@@ -178,6 +248,9 @@ function collectSourceItems(pagesData = []) {
         y: round(item.y),
         width: round(item.width),
         height: round(item.height),
+        right: round(item.right ?? (item.x + item.width)),
+        bottom: round(item.bottom ?? (item.y + item.height)),
+        filteredOut: filteredOutIds.has(item.id),
       });
     }
   }
@@ -185,22 +258,143 @@ function collectSourceItems(pagesData = []) {
   return items;
 }
 
-function collectUnassignedTextItems(sourceItems = [], tables = []) {
-  const assignedIds = new Set();
+function collectUnassignedTextItems(sourceItems = [], tables = [], pages = [], tableBoundsIndex = buildTableBoundsIndex(tables)) {
+  const assignedIds = new Set(collectItemUsages(tables).keys());
+  const pageMap = new Map(pages.map(page => [page.pageNumber, page]));
+
+  return sourceItems
+    .filter(item => !assignedIds.has(item.id))
+    .map(item => {
+      const page = pageMap.get(item.pageNumber);
+      const pageHeight = Number(page?.heightPt || 0);
+      const bottomZoneStart = pageHeight ? pageHeight * 0.85 : 0;
+      const tableIds = findContainingTables(item, tableBoundsIndex);
+      return {
+        ...item,
+        tableIds,
+        insideDetectedTable: tableIds.length > 0,
+        inBottomZone: item.bottom >= bottomZoneStart,
+      };
+    });
+}
+
+function buildPageStates({
+  pages = [],
+  sourceItems = [],
+  tables = [],
+  unassignedTextItems = [],
+  validation,
+  tableBoundsIndex,
+}) {
+  const assignedIds = new Set(collectItemUsages(tables).keys());
+  const unassignedMap = new Map();
+  for (const item of unassignedTextItems) {
+    const list = unassignedMap.get(item.pageNumber) || [];
+    list.push(item);
+    unassignedMap.set(item.pageNumber, list);
+  }
+
+  return pages.map(page => {
+    const pageItems = sourceItems.filter(item => item.pageNumber === page.pageNumber);
+    const assignedItems = pageItems.filter(item => assignedIds.has(item.id));
+    const unassignedItems = unassignedMap.get(page.pageNumber) || [];
+    const bottomZoneStart = Number(page.heightPt || 0) * 0.85;
+    const bottomZoneSourceItems = pageItems.filter(item => item.bottom >= bottomZoneStart);
+    const bottomZoneAssignedItems = bottomZoneSourceItems.filter(item => assignedIds.has(item.id));
+    const bottomZoneUnassignedItems = bottomZoneSourceItems.filter(item => !assignedIds.has(item.id));
+    const warnings = [
+      ...(page.diagnostics?.ocrWarnings || []),
+      ...(page.diagnostics?.warnings || []),
+    ];
+    if (!page.visualGenerated) warnings.push('Imagem visual integral nao foi gerada.');
+    if (unassignedItems.some(item => item.insideDetectedTable)) warnings.push('Existem itens nao associados dentro da area de tabela.');
+    if (bottomZoneUnassignedItems.some(item => item.tableIds?.length)) warnings.push('Existem itens finais da zona inferior sem associacao editavel.');
+
+    let status = 'OK';
+    const hasLostTableContent = validation.missing.some(id => {
+      const item = sourceItems.find(sourceItem => sourceItem.id === id);
+      return item && findContainingTables(item, tableBoundsIndex).length > 0;
+    });
+
+    if (!page.visualGenerated || hasLostTableContent) {
+      status = 'FALHA';
+    } else if (
+      warnings.length
+      || unassignedItems.some(item => item.insideDetectedTable)
+      || bottomZoneUnassignedItems.some(item => item.tableIds?.length)
+    ) {
+      status = 'REVISAR';
+    }
+
+    return {
+      pageNumber: page.pageNumber,
+      widthPt: round(page.widthPt),
+      heightPt: round(page.heightPt),
+      rotation: Number(page.rotation || 0),
+      textLayerDetected: Boolean(page.textLayerDetected),
+      ocrApplied: Boolean(page.ocrApplied),
+      imageAvailable: Boolean(page.imageAvailable),
+      visualGenerated: Boolean(page.visualGenerated),
+      diagnostics: page.diagnostics || null,
+      textItems: pageItems.length,
+      assignedItems: assignedItems.length,
+      unassignedItems: unassignedItems.length,
+      lastSourceBottom: round(Math.max(0, ...pageItems.map(item => item.bottom))),
+      lastAssignedBottom: round(Math.max(0, ...assignedItems.map(item => item.bottom))),
+      bottomZoneSourceCount: bottomZoneSourceItems.length,
+      bottomZoneAssignedCount: bottomZoneAssignedItems.length,
+      bottomZoneUnassignedCount: bottomZoneUnassignedItems.length,
+      warnings: [...new Set(warnings)],
+      status,
+    };
+  });
+}
+
+function buildTableBoundsIndex(tables = []) {
+  return tables.flatMap(table => {
+    const pageBounds = new Map();
+    const sourceRows = table.sourceCells || table.cells || [];
+
+    for (const row of sourceRows) {
+      for (const cell of row || []) {
+        if (!cell || !cell.sourceItemIds?.length) continue;
+        const pages = cell.sourcePages?.length ? cell.sourcePages : [cell.sourcePage || table.pageNumber];
+        for (const pageNumber of pages) {
+          const current = pageBounds.get(pageNumber) || createEmptyBounds(table.id, pageNumber);
+          mergeIntoBounds(current, cell);
+          pageBounds.set(pageNumber, current);
+        }
+      }
+    }
+
+    return [...pageBounds.values()]
+      .filter(bounds => Number.isFinite(bounds.left) && Number.isFinite(bounds.right));
+  });
+}
+
+function collectItemUsages(tables = []) {
+  const usages = new Map();
 
   for (const table of tables) {
-    for (const row of table.cells || []) {
+    for (const row of table.sourceCells || table.cells || []) {
       for (const cell of row || []) {
         for (const id of cell?.sourceItemIds || []) {
-          assignedIds.add(id);
+          usages.set(id, (usages.get(id) || 0) + 1);
         }
       }
     }
   }
 
-  return sourceItems
-    .filter(item => !assignedIds.has(item.id))
-    .map(item => ({ ...item }));
+  return usages;
+}
+
+function findContainingTables(item, tableBoundsIndex = []) {
+  const centerX = item.x + (item.width / 2);
+  const centerY = item.y + (item.height / 2);
+  return tableBoundsIndex
+    .filter(bounds => bounds.pageNumber === item.pageNumber)
+    .filter(bounds => centerX >= (bounds.left - 4) && centerX <= (bounds.right + 4) && centerY >= (bounds.top - 4) && centerY <= (bounds.bottom + 4))
+    .map(bounds => bounds.tableId);
 }
 
 function buildTableIr(documentResult) {
@@ -218,6 +412,9 @@ function buildTableIr(documentResult) {
         duplicated: [...(documentResult.validation?.contentConservation?.duplicated || [])],
         missing: [...(documentResult.validation?.contentConservation?.missing || [])],
         unknownUnassigned: [...(documentResult.validation?.contentConservation?.unknownUnassigned || [])],
+        unassignedInsideDetectedTables: [...(documentResult.validation?.contentConservation?.unassignedInsideDetectedTables || [])],
+        bottomZoneMissing: [...(documentResult.validation?.contentConservation?.bottomZoneMissing || [])],
+        visualPagesMissing: [...(documentResult.validation?.contentConservation?.visualPagesMissing || [])],
         warnings: [...(documentResult.validation?.contentConservation?.warnings || [])],
       },
     },
@@ -357,4 +554,27 @@ function buildOcrState(documentResult) {
     dpi: Number(documentResult.settings?.ocrDpi || 300),
     warnings: [...new Set(warnings)],
   };
+}
+
+function createEmptyBounds(tableId, pageNumber) {
+  return {
+    tableId,
+    pageNumber,
+    left: Number.POSITIVE_INFINITY,
+    top: Number.POSITIVE_INFINITY,
+    right: Number.NEGATIVE_INFINITY,
+    bottom: Number.NEGATIVE_INFINITY,
+  };
+}
+
+function mergeIntoBounds(bounds, cell) {
+  const left = Number(cell.x || 0);
+  const top = Number(cell.y || 0);
+  const right = Number.isFinite(cell.right) ? Number(cell.right) : left + Number(cell.width || 0);
+  const bottom = Number.isFinite(cell.bottom) ? Number(cell.bottom) : top + Number(cell.height || 0);
+
+  bounds.left = Math.min(bounds.left, left);
+  bounds.top = Math.min(bounds.top, top);
+  bounds.right = Math.max(bounds.right, right);
+  bounds.bottom = Math.max(bounds.bottom, bottom);
 }
