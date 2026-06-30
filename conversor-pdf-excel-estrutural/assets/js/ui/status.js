@@ -1,4 +1,4 @@
-import { $ } from '../utils/dom.js?v=2026-06-30-livepreview-3';
+﻿import { $ } from '../utils/dom.js?v=2026-06-30-livepreview-4';
 
 export class StatusView {
   constructor() {
@@ -18,3 +18,4 @@ export class StatusView {
 
   showMetrics() {}
 }
+

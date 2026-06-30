@@ -1,4 +1,4 @@
-import { extractDocumentTables } from '../extraction/tableExtractor.js?v=2026-06-30-livepreview-3';
+﻿import { extractDocumentTables } from '../extraction/tableExtractor.js?v=2026-06-30-livepreview-4';
 
 self.addEventListener('message', event => {
   const { requestId, payload } = event.data || {};
@@ -17,3 +17,4 @@ self.addEventListener('message', event => {
     });
   }
 });
+

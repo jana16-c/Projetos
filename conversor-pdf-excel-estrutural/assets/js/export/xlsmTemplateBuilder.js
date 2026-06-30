@@ -1,7 +1,7 @@
-import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-3';
-import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
-import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-3';
-import { buildAuditRows, buildUnassignedRows } from './workbookBuilder.js?v=2026-06-30-livepreview-3';
+import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-4';
+import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-4';
+import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-4';
+import { buildAuditRows, buildUnassignedRows, resolveRenderableCellInfo } from './workbookBuilder.js?v=2026-06-30-livepreview-4';
 
 const MAX_XLSM_SOURCE_AUDIT_ROWS = 5000;
 
@@ -76,7 +76,7 @@ export function buildExtractionSheets(XLSX, documentResult, options = {}) {
   for (const table of documentResult.tables) {
     const name = safeSheetName(`EXTRACAO_P${table.pageNumber}_T${table.tableIndex}`);
     const renderable = buildRenderableTable(table);
-    const matrix = renderable.matrix.map((row, rowIndex) => row.map((_, columnIndex) => xlsmValue(renderable.cells[rowIndex]?.[columnIndex])));
+    const matrix = renderable.matrix.map((row, rowIndex) => row.map((_, columnIndex) => xlsmValue(resolveRenderableCellInfo(renderable, rowIndex, columnIndex))));
     const sheet = XLSX.utils.aoa_to_sheet(matrix);
     sheet['!cols'] = buildCols(matrix, deriveColumnWidths(table, Math.max(1, ...renderable.matrix.map(row => row.length))));
     sheet['!rows'] = deriveRowHeights(table, matrix.length).map(height => ({ hpt: height }));

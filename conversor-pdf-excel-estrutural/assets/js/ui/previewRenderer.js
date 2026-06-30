@@ -1,4 +1,4 @@
-import { clear, el } from '../utils/dom.js?v=2026-06-30-livepreview-3';
+﻿import { clear, el } from '../utils/dom.js?v=2026-06-30-livepreview-4';
 
 export function renderPreview(container, documentResult, handlers = {}) {
   clear(container);
@@ -26,14 +26,14 @@ function buildTableCard(table, handlers) {
       el('div', {}, [
         el('p', { class: 'eyebrow', text: labelPages }),
         el('h3', { text: `Tabela ${table.tableIndex}` }),
-        el('p', { class: 'table-meta', text: `${Math.round((table.confidence || 0) * 100)}% de confianca · ${table.matrix.length} linhas · ${table.matrix[0]?.length || 0} colunas` }),
+        el('p', { class: 'table-meta', text: `${Math.round((table.confidence || 0) * 100)}% de confianca Â· ${table.matrix.length} linhas Â· ${table.matrix[0]?.length || 0} colunas` }),
       ]),
       buildActions(table, handlers),
     ]),
   );
 
   if (table.warnings?.length) {
-    card.appendChild(el('p', { class: 'warning', text: table.warnings.join(' · ') }));
+    card.appendChild(el('p', { class: 'warning', text: table.warnings.join(' Â· ') }));
   }
 
   const wrapper = el('div', { class: 'table-scroll' });
@@ -103,3 +103,4 @@ function actionButton(label, onClick) {
     onclick: onClick,
   }, [label]);
 }
+

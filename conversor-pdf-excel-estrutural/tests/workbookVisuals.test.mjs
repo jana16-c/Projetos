@@ -87,6 +87,94 @@ const cleanSheetPlan = buildWorkbookSheetPlan({
 });
 assert.deepEqual(cleanSheetPlan.map(item => item.sheetName), ['Dados_T001']);
 
+const frontMatterTables = normalizeWorkbookTablesForExport([
+  {
+    pageNumber: 1,
+    sourcePages: [1],
+    headerRowIndex: -1,
+    matrix: [
+      ['Processo:', '001'],
+      ['Cálculo:', '10'],
+      ['PLANILHA DE CÁLCULO', ''],
+      ['Reclamante:', 'FULANO'],
+      ['Reclamado:', 'EMPRESA'],
+    ],
+    cells: [
+      [{ value: 'Processo:' }, { value: '001' }],
+      [{ value: 'Cálculo:' }, { value: '10' }],
+      [{ value: 'PLANILHA DE CÁLCULO' }, { value: '' }],
+      [{ value: 'Reclamante:' }, { value: 'FULANO' }],
+      [{ value: 'Reclamado:' }, { value: 'EMPRESA' }],
+    ],
+    rowMeta: Array.from({ length: 5 }, () => ({ isTitle: true, cellMeta: [] })),
+  },
+  {
+    pageNumber: 1,
+    sourcePages: [1],
+    headerRowIndex: 2,
+    matrix: [
+      ['Período do Cálculo:', '01/2020 a 12/2020'],
+      ['Resumo do Cálculo', ''],
+      ['Descrição', 'Total'],
+      ['Verbas', '100,00'],
+    ],
+    cells: [
+      [{ value: 'Período do Cálculo:' }, { value: '01/2020 a 12/2020' }],
+      [{ value: 'Resumo do Cálculo' }, { value: '' }],
+      [{ value: 'Descrição' }, { value: 'Total' }],
+      [{ value: 'Verbas' }, { value: '100,00' }],
+    ],
+    rowMeta: [
+      { isTitle: true, cellMeta: [] },
+      { isTitle: true, cellMeta: [] },
+      { isHeader: true, cellMeta: [] },
+      { cellMeta: [] },
+    ],
+  },
+  {
+    pageNumber: 2,
+    sourcePages: [2],
+    headerRowIndex: -1,
+    matrix: [
+      ['Dados do Cálculo', ''],
+      ['Estado:', 'MG'],
+      ['Município:', 'CORONEL FABRICIANO'],
+      ['Admissão:', '06/07/2012'],
+    ],
+    cells: [
+      [{ value: 'Dados do Cálculo' }, { value: '' }],
+      [{ value: 'Estado:' }, { value: 'MG' }],
+      [{ value: 'Município:' }, { value: 'CORONEL FABRICIANO' }],
+      [{ value: 'Admissão:' }, { value: '06/07/2012' }],
+    ],
+    rowMeta: Array.from({ length: 4 }, () => ({ isTitle: true, cellMeta: [] })),
+  },
+  {
+    pageNumber: 3,
+    sourcePages: [3],
+    headerRowIndex: 1,
+    matrix: [
+      ['Histórico Salarial', ''],
+      ['MÊS/ANO', 'VALOR'],
+      ['07/2012', '0,00'],
+    ],
+    cells: [
+      [{ value: 'Histórico Salarial' }, { value: '' }],
+      [{ value: 'MÊS/ANO' }, { value: 'VALOR' }],
+      [{ value: '07/2012' }, { value: '0,00' }],
+    ],
+    rowMeta: [
+      { isTitle: true, cellMeta: [] },
+      { isHeader: true, cellMeta: [] },
+      { cellMeta: [] },
+    ],
+  },
+]);
+assert.equal(frontMatterTables.length, 2);
+assert.equal(frontMatterTables[0].table.sourcePages.join(','), '1,2');
+assert.equal(frontMatterTables[0].renderable.headerRowIndex, -1);
+assert.equal(frontMatterTables[1].renderable.matrix[0][0], 'Histórico Salarial');
+
 const normalizedTables = normalizeWorkbookTablesForExport([
   {
     pageNumber: 7,
@@ -406,6 +494,35 @@ assert.equal(continuationTitleOnlyTables.length, 1);
 assert.deepEqual(continuationTitleOnlyTables[0].renderable.matrix[0], ['Historico Salarial', '']);
 assert.equal(continuationTitleOnlyTables[0].renderable.matrix.filter(row => row.includes('09/2012')).length, 1);
 assert.equal(continuationTitleOnlyTables[0].renderable.matrix.filter(row => row.includes('10/2012')).length, 1);
+
+const sparseCellsTables = normalizeWorkbookTablesForExport([
+  {
+    pageNumber: 21,
+    sourcePages: [21],
+    headerRowIndex: 1,
+    matrix: [
+      ['', '', 'Base de Cálculo - 13º Salário - Contribuição', '', '', ''],
+      ['Período de Referência', '', 'Base de Cálculo - Contribuição', '', 'Base de Cálculo - FGTS', ''],
+      ['', '', 'Previdenciária', '', '', ''],
+      ['11/2013', '0,00', '0,00', '0,00', '', ''],
+    ],
+    cells: [
+      [{ value: '' }, { value: '' }, { value: 'Base de Cálculo - 13º Salário - Contribuição' }, { value: '' }, { value: '' }, { value: '' }],
+      [{ value: 'Período de Referência' }, { value: '' }, { value: 'Base de Cálculo - Contribuição' }, { value: '' }, { value: 'Base de Cálculo - FGTS' }, { value: '' }],
+      [{ value: '' }, { value: '' }, { value: 'Previdenciária' }, { value: '' }, { value: '' }, { value: '' }],
+      [{ value: '11/2013' }, { value: '0,00' }, {}, {}, {}, {}],
+    ],
+    rowMeta: [
+      { isTitle: true, cellMeta: [] },
+      { isHeader: true, cellMeta: [] },
+      { isTitle: true, cellMeta: [] },
+      { cellMeta: [] },
+    ],
+  },
+]);
+assert.equal(sparseCellsTables.length, 1);
+assert.equal(sparseCellsTables[0].renderable.cells[3][2].value, '0,00');
+assert.equal(sparseCellsTables[0].renderable.cells[3][3].value, '0,00');
 
 const auditRows = buildAuditRows(documentResult);
 assert.equal(auditRows[0][0], 1);

@@ -1,11 +1,11 @@
-import {
+﻿import {
   headerSuggestsIdentifier,
   isCompetencia,
   isExplicitDate,
   isMoneyLike,
   isPercentageLike,
   looksLikeIdentifier,
-} from '../utils/identifiers.js?v=2026-06-30-livepreview-3';
+} from '../utils/identifiers.js?v=2026-06-30-livepreview-4';
 
 export function classifyCellValue(value, options = {}) {
   const text = String(value ?? '').trim();
@@ -115,3 +115,4 @@ function parseDate(value) {
   const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
   return Number.isFinite(date.getTime()) ? date : null;
 }
+

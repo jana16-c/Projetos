@@ -1,4 +1,4 @@
-import { cellLooksNumeric, median, percentile } from './geometry.js?v=2026-06-30-livepreview-3';
+﻿import { cellLooksNumeric, median, percentile } from './geometry.js?v=2026-06-30-livepreview-4';
 
 export function buildColumnModel(rows, pageWidth, settings) {
   const segments = rows.flatMap(row => row.segments.map(segment => ({ ...segment, rowIndex: row.index })));
@@ -245,3 +245,4 @@ function isProbablyHeader(cells) {
   }).length;
   return numeric === 0 && uppercaseish >= Math.ceil(filled.length * 0.45);
 }
+

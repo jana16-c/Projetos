@@ -1,4 +1,4 @@
-import { cellLooksNumeric, normalizeAscii } from './geometry.js?v=2026-06-30-livepreview-3';
+﻿import { cellLooksNumeric, normalizeAscii } from './geometry.js?v=2026-06-30-livepreview-4';
 
 export function detectHeaderSignature(matrix, rowMeta = []) {
   const limit = Math.min(3, matrix.length);
@@ -48,3 +48,4 @@ function headerScore(row, meta) {
 
   return Math.min(1, (nonNumericRatio * 0.44) + (uppercaseRatio * 0.14) + fontBoost + headerFlag + sizeBoost + (filled.length >= 3 ? 0.1 : 0));
 }
+

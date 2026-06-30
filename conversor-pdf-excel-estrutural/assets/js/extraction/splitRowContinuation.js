@@ -1,4 +1,4 @@
-import { cellLooksNumeric } from './geometry.js?v=2026-06-30-livepreview-3';
+import { cellLooksNumeric } from './geometry.js?v=2026-06-30-livepreview-4';
 
 const MIN_CONFIDENCE = 0.78;
 const TERMINAL_ROW_RE = /\b(total|subtotal|total geral|fim|encerramento)\b/i;
@@ -175,7 +175,7 @@ function gatherSignals(previousRow = [], currentRow = [], options = {}) {
 
 function looksLikeTextContinuation(left, right) {
   if (cellLooksNumeric(left) || cellLooksNumeric(right)) return false;
-  return /[A-Za-zÀ-ÿ0-9)]$/.test(left) && /^[A-Za-zÀ-ÿ0-9(]/.test(right);
+  return /[A-Za-z\u00C0-\u00FF0-9)]$/.test(left) && /^[A-Za-z\u00C0-\u00FF0-9(]/.test(right);
 }
 
 function isValueConflict(left, right) {

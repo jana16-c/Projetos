@@ -1,8 +1,8 @@
-import { jaccardSimilarity } from './geometry.js?v=2026-06-30-livepreview-3';
-import { mergeSplitBoundaryRow } from './splitRowContinuation.js?v=2026-06-30-livepreview-3';
+﻿import { jaccardSimilarity } from './geometry.js?v=2026-06-30-livepreview-4';
+import { mergeSplitBoundaryRow } from './splitRowContinuation.js?v=2026-06-30-livepreview-4';
 
 const TERMINAL_ROW_RE = /\b(total|subtotal|total geral|fim|encerramento)\b/i;
-const DECORATIVE_FOOTER_RE = /\b(c[aá]lculo liquidado|p[aá]g\.\s*\d+|vers[aã]o\s+\d+\.\d+)\b/i;
+const DECORATIVE_FOOTER_RE = /\b(c[aÃ¡]lculo liquidado|p[aÃ¡]g\.\s*\d+|vers[aÃ£]o\s+\d+\.\d+)\b/i;
 
 export function mergeContinuationTables(tables, settings = {}) {
   if (!settings.mergeContinuation) return tables;
@@ -400,7 +400,7 @@ function isDecorativeTrailingRow(row = []) {
   const text = row.map(value => String(value ?? '').trim()).filter(Boolean).join(' ');
   if (!text) return true;
   if (DECORATIVE_FOOTER_RE.test(text)) return true;
-  return /^[Pp][áa]g\.\s*\d+/.test(text);
+  return /^[Pp][Ã¡a]g\.\s*\d+/.test(text);
 }
 
 function getLastEffectiveRow(table) {
@@ -481,3 +481,4 @@ function createEmptyMetaCell() {
     sourceItemIds: [],
   };
 }
+

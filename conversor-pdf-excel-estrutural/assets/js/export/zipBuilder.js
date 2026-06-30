@@ -1,10 +1,10 @@
-import { matrixToCsv } from './csvBuilder.js?v=2026-06-30-livepreview-3';
-import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js?v=2026-06-30-livepreview-3';
-import { buildXlsmFilename, buildXlsmFromTemplate } from './xlsmTemplateBuilder.js?v=2026-06-30-livepreview-3';
-import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-3';
-import { ensureZipJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
-import { collectWarnings } from '../model/resultModel.js?v=2026-06-30-livepreview-3';
-import { buildRenderableTable } from './tableLayout.js?v=2026-06-30-livepreview-3';
+import { matrixToCsv } from './csvBuilder.js?v=2026-06-30-livepreview-4';
+import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js?v=2026-06-30-livepreview-4';
+import { buildXlsmFilename, buildXlsmFromTemplate } from './xlsmTemplateBuilder.js?v=2026-06-30-livepreview-4';
+import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-4';
+import { ensureZipJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-4';
+import { collectWarnings } from '../model/resultModel.js?v=2026-06-30-livepreview-4';
+import { buildRenderableTable } from './tableLayout.js?v=2026-06-30-livepreview-4';
 
 export async function buildZipPackage(documentResult, templateFile = null, options = {}) {
   await ensureZipJsRuntime();

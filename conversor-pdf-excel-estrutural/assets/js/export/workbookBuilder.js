@@ -1,7 +1,7 @@
-import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-3';
-import { getRuntimePages } from '../model/resultModel.js?v=2026-06-30-livepreview-3';
-import { ensureExcelJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
-import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-3';
+import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-4';
+import { getRuntimePages } from '../model/resultModel.js?v=2026-06-30-livepreview-4';
+import { ensureExcelJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-4';
+import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-4';
 
 export async function buildWorkbook(documentResult, options = {}) {
   await ensureExcelJsRuntime();
@@ -163,7 +163,7 @@ function writeTableMatrix(worksheet, sourceTable, renderable, rowHeights, startR
     worksheetRow.height = rowHeights[rowIndex] || 15;
 
     for (let columnIndex = 0; columnIndex < maxCols; columnIndex++) {
-      const cellInfo = renderable.cells[rowIndex]?.[columnIndex];
+      const cellInfo = resolveRenderableCellInfo(renderable, rowIndex, columnIndex);
       const rowMeta = renderable.rowMeta[rowIndex] || {};
       const cellMeta = rowMeta.cellMeta?.[columnIndex] || {};
       const cell = worksheetRow.getCell(columnIndex + 1);
@@ -390,6 +390,26 @@ export function buildExcelFilename(pdfName) {
   return `${safeFileStem(pdfName)}.xlsx`;
 }
 
+export function resolveRenderableCellInfo(renderable, rowIndex, columnIndex) {
+  const cellInfo = renderable?.cells?.[rowIndex]?.[columnIndex];
+  const matrixValue = renderable?.matrix?.[rowIndex]?.[columnIndex] ?? '';
+  const filledMatrixValue = String(matrixValue ?? '').trim();
+  if (!filledMatrixValue) return cellInfo;
+
+  const currentValue = cellInfo?.preserveAsText
+    ? String(cellInfo?.value || '')
+    : (cellInfo?.normalizedValue ?? cellInfo?.value ?? '');
+
+  if (String(currentValue ?? '').trim()) return cellInfo;
+
+  return {
+    ...(cellInfo || {}),
+    value: matrixValue,
+    normalizedValue: matrixValue,
+    preserveAsText: cellInfo?.preserveAsText ?? true,
+  };
+}
+
 export function normalizeWorkbookTablesForExport(tables = []) {
   const entries = tables.flatMap(table => splitRenderableEntryIntoSections({
     table: {
@@ -409,6 +429,14 @@ export function normalizeWorkbookTablesForExport(tables = []) {
 
       if (moveTrailingPreludeToNext(current.renderable, next.renderable)) {
         changed = true;
+      }
+
+      if (canMergeFrontMatterEntries(current, next)) {
+        entries[index] = mergeFrontMatterEntries(current, next);
+        entries.splice(index + 1, 1);
+        changed = true;
+        index = Math.max(-1, index - 1);
+        continue;
       }
 
       if (canMergeRenderableContinuation(current, next)) {
@@ -462,6 +490,11 @@ function canMergeRenderableContinuation(current, next) {
   return !endsWithTotalRow(currentProbe);
 }
 
+function canMergeFrontMatterEntries(current, next) {
+  if (!areTablesConsecutive(current.table, next.table)) return false;
+  return isFrontMatterRenderable(current.renderable) && isFrontMatterRenderable(next.renderable);
+}
+
 function mergeRenderableEntries(current, next) {
   const nextSkip = next.renderable.headerRowIndex >= 0 ? next.renderable.headerRowIndex + 1 : 0;
   const mergedRenderable = {
@@ -478,6 +511,32 @@ function mergeRenderableEntries(current, next) {
       ...next.renderable.rowMeta.slice(nextSkip).map(meta => cloneMeta(meta)),
     ],
     headerRowIndex: current.renderable.headerRowIndex,
+  };
+
+  return {
+    table: {
+      ...current.table,
+      sourcePages: [...new Set([...(current.table.sourcePages || []), ...(next.table.sourcePages || [])])],
+    },
+    renderable: mergedRenderable,
+  };
+}
+
+function mergeFrontMatterEntries(current, next) {
+  const mergedRenderable = {
+    matrix: [
+      ...current.renderable.matrix.map(row => [...row]),
+      ...next.renderable.matrix.map(row => [...row]),
+    ],
+    cells: [
+      ...current.renderable.cells.map(row => row.map(cell => ({ ...(cell || {}) }))),
+      ...next.renderable.cells.map(row => row.map(cell => ({ ...(cell || {}) }))),
+    ],
+    rowMeta: [
+      ...current.renderable.rowMeta.map(meta => cloneMeta(meta)),
+      ...next.renderable.rowMeta.map(meta => cloneMeta(meta)),
+    ],
+    headerRowIndex: -1,
   };
 
   return {
@@ -636,6 +695,34 @@ function isPreludeText(text) {
     || /^base s para/.test(text);
 }
 
+function isFrontMatterRenderable(renderable) {
+  const rows = (renderable?.matrix || []).filter(row => row.some(value => String(value ?? '').trim()));
+  if (!rows.length) return false;
+  const topRows = rows.slice(0, 16).map(rowLooseText).filter(Boolean);
+  const combined = topRows.join(' || ');
+  if (!combined) return false;
+
+  const hitCount = [
+    /\bprocesso\b/,
+    /\bcalculo\b/,
+    /planilha de calculo/,
+    /\breclamante\b/,
+    /\breclamado\b/,
+    /periodo do calculo/,
+    /data ajuizamento/,
+    /data liquidacao/,
+    /resumo do calculo/,
+    /dados do calculo/,
+    /\bestado\b/,
+    /\bmunicipio\b/,
+    /\badmissao\b/,
+    /\bdemissao\b/,
+  ].reduce((count, pattern) => count + (pattern.test(combined) ? 1 : 0), 0);
+
+  if (hitCount < 3) return false;
+  return !topRows.some(text => /^historico salarial\b/.test(text) || /^demonstrativo\b/.test(text) || /^base de calculo\b/.test(text));
+}
+
 function normalizeLooseText(value) {
   return String(value || '')
     .normalize('NFD')
@@ -740,6 +827,10 @@ function finalizeRenderableForWorkbook(renderable) {
   next = removeGloballyEmptyColumns(next);
   next = trimBlankRows(next);
   next = trimTrailingEmptyColumns(next);
+  next = hydrateRenderableCellsFromMatrix(next);
+  if (isFrontMatterRenderable(next)) {
+    next.headerRowIndex = -1;
+  }
   return next;
 }
 
@@ -974,6 +1065,21 @@ function trimTrailingEmptyColumns(renderable) {
       ...cloneMeta(meta),
       cellMeta: (meta.cellMeta || []).slice(0, keepCols).map(cell => ({ ...(cell || {}) })),
     })),
+    headerRowIndex: renderable.headerRowIndex,
+  };
+}
+
+function hydrateRenderableCellsFromMatrix(renderable) {
+  const matrix = renderable.matrix.map(row => [...row]);
+  const rowMeta = renderable.rowMeta.map(meta => cloneMeta(meta));
+  const cells = matrix.map((row, rowIndex) => row.map((_, columnIndex) => (
+    { ...(resolveRenderableCellInfo(renderable, rowIndex, columnIndex) || {}) }
+  )));
+
+  return {
+    matrix,
+    cells,
+    rowMeta,
     headerRowIndex: renderable.headerRowIndex,
   };
 }

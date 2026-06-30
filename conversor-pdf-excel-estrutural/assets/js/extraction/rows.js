@@ -1,4 +1,4 @@
-import { median, weightedAverage, isBoldFont, isItalicFont } from './geometry.js?v=2026-06-30-livepreview-3';
+import { median, weightedAverage, isBoldFont, isItalicFont } from './geometry.js?v=2026-06-30-livepreview-4';
 
 export function buildRows(items, settings) {
   if (!items.length) return { rows: [], stats: defaultStats() };
@@ -132,6 +132,6 @@ function shouldInsertSpace(gap, medianCharWidth, left, right) {
   if (!left || !right) return false;
   if (/\s$/.test(left) || /^\s/.test(right)) return false;
   if (gap > medianCharWidth * 0.18) return true;
-  if (/[a-zA-ZÀ-ÿ0-9]$/.test(left) && /^[a-zA-ZÀ-ÿ0-9]/.test(right)) return true;
+  if (/[A-Za-z\u00C0-\u00FF0-9]$/.test(left) && /^[A-Za-z\u00C0-\u00FF0-9]/.test(right)) return true;
   return false;
 }

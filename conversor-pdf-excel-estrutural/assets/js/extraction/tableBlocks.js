@@ -1,4 +1,4 @@
-import { average, cellLooksNumeric, clamp, median } from './geometry.js?v=2026-06-30-livepreview-3';
+﻿import { average, cellLooksNumeric, clamp, median } from './geometry.js?v=2026-06-30-livepreview-4';
 
 export function detectTableBlocks(rows, pageWidth) {
   if (!rows.length) return [];
@@ -279,3 +279,4 @@ function normalizeLooseText(value) {
     .replace(/\s+/g, ' ')
     .trim();
 }
+

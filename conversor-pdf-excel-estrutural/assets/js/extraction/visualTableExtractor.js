@@ -1,5 +1,5 @@
-import { detectHeaderSignature } from './headerSignature.js?v=2026-06-30-livepreview-3';
-import { attachCellClassification } from './valueClassifier.js?v=2026-06-30-livepreview-3';
+﻿import { detectHeaderSignature } from './headerSignature.js?v=2026-06-30-livepreview-4';
+import { attachCellClassification } from './valueClassifier.js?v=2026-06-30-livepreview-4';
 
 export function buildTablesFromVisualGrid(pageData, settings = {}) {
   const visualTables = Array.isArray(pageData?.visualTables) ? pageData.visualTables : [];
@@ -214,3 +214,4 @@ function inferBounds(visualTable) {
     bottom: Math.max(...cells.map(cell => Number(cell.y || 0) + Number(cell.height || 0)), 0),
   };
 }
+
