@@ -2,13 +2,11 @@
 
 Repositório de utilitários locais para processamento de documentos, extração de dados e automações.
 
-## Projetos disponíveis
+## Processador de Tabelas de Processos Trabalhistas
 
-### Processador de Tabelas de Processos Trabalhistas
+Aplicação em HTML e JavaScript para converter dados estruturados de PDFs em tabelas Excel, com foco em velocidade, confiabilidade e rastreabilidade.
 
-Aplicativo local em HTML e JavaScript para converter dados estruturados de PDFs em tabelas Excel, com foco em velocidade, confiabilidade e rastreabilidade do resultado.
-
-Local do projeto:
+Local:
 
 ```text
 conversor-pdf-excel-estrutural/
@@ -16,51 +14,55 @@ conversor-pdf-excel-estrutural/
 
 Principais recursos:
 
-- leitura estrutural com **pdf.js**;
-- extração por coordenadas da camada textual;
-- seleção de páginas e intervalos;
+- leitura estrutural com `pdf.js`;
+- seleção de páginas;
 - modos texto, OCR, híbrido e automático;
-- reconstrução de linhas, colunas e blocos tabulares;
+- reconstrução de linhas, colunas e blocos;
 - continuação de tabelas entre páginas;
-- exportação `.xlsx` com **ExcelJS**;
-- exportação `.xlsm` baseada em modelo com **SheetJS**;
-- pacote `.zip` com CSVs e diagnóstico técnico;
-- auditoria de itens associados, não associados, ausentes ou duplicados.
+- exportação XLSX, XLSM e ZIP;
+- auditoria de itens ausentes, duplicados ou não associados.
 
-Documentação:
+## Como executar
 
-- [`README do processador`](./conversor-pdf-excel-estrutural/README.md)
-- [`Arquitetura, precisão e desempenho`](./conversor-pdf-excel-estrutural/docs/ARQUITETURA_E_PRECISAO.md)
+### Durante o desenvolvimento
 
-## Como abrir no Windows
+1. Abra a pasta no VS Code.
+2. Abra `conversor-pdf-excel-estrutural/index.html`.
+3. Execute com **Live Preview**.
 
-Na primeira utilização, para instalar as bibliotecas locais:
+Não é necessário fazer o build durante os testes no VS Code.
 
-```text
-conversor-pdf-excel-estrutural/BAIXAR_BIBLIOTECAS_WINDOWS.bat
-```
+### Uso final
 
-Para iniciar o aplicativo:
+1. Execute o build do processador.
+2. Abra diretamente no navegador o HTML consolidado gerado.
 
-```text
-conversor-pdf-excel-estrutural/ABRIR_APP_WINDOWS.bat
-```
+O uso final não depende de `server.py`, servidor Python ou `ABRIR_APP_WINDOWS.bat`.
 
-O aplicativo abrirá em:
+O comando e o destino do build serão padronizados conforme o plano de implementação. O nome e o caminho do HTML consolidado já utilizado devem ser preservados.
 
-```text
-http://127.0.0.1:8787
-```
-
-## Desenvolvimento local
+## Desenvolvimento
 
 ```bash
 cd conversor-pdf-excel-estrutural
 npm test
 npm run check:syntax
-python server.py
 ```
 
-## Observação sobre precisão
+## Documentação
 
-O processador combina extração textual, OCR opcional, reconstrução geométrica e validação de conservação de conteúdo. Como PDFs descrevem a aparência da página e nem sempre preservam a estrutura lógica da tabela, resultados de baixa confiança devem ser sinalizados para revisão em vez de tratados como automaticamente corretos.
+- [`README do processador`](./conversor-pdf-excel-estrutural/README.md)
+- [`Arquitetura, precisão e desempenho`](./conversor-pdf-excel-estrutural/docs/ARQUITETURA_E_PRECISAO.md)
+- [`Plano incremental para implementação pelo Codex`](./conversor-pdf-excel-estrutural/docs/PLANO_IMPLEMENTACAO_CODEX.md)
+
+## Direção técnica
+
+A evolução deve preservar o comportamento atual por padrão e acrescentar recursos de maneira incremental:
+
+1. build do HTML consolidado;
+2. opção de todas as tabelas em uma única aba;
+3. caminho rápido para PDF textual confiável;
+4. OCR somente quando necessário;
+5. reconstrução por limites e alinhamentos;
+6. detecção visual de grades;
+7. validação por esquema e confiança.
