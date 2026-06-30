@@ -1,4 +1,7 @@
 import './pages.test.mjs';
+import './buildStandalone.test.mjs';
+import './textLayerQuality.test.mjs';
+import './browserProcessor.test.mjs';
 import './rows.test.mjs';
 import './columns.test.mjs';
 import './marginFiltering.test.mjs';
@@ -13,6 +16,7 @@ import './xlsm.test.mjs';
 import './contentConservation.test.mjs';
 import './extraction.test.mjs';
 import './reconcileItems.test.mjs';
+import './resultModel.test.mjs';
 import './workbookVisuals.test.mjs';
 
 console.log('run-all.mjs OK');

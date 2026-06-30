@@ -1,7 +1,7 @@
-import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-4';
-import { getRuntimePages } from '../model/resultModel.js?v=2026-06-30-livepreview-4';
-import { ensureExcelJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-4';
-import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-4';
+import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-5';
+import { getRuntimePages } from '../model/resultModel.js?v=2026-06-30-livepreview-5';
+import { ensureExcelJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-5';
+import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-5';
 
 export async function buildWorkbook(documentResult, options = {}) {
   await ensureExcelJsRuntime();
@@ -11,7 +11,11 @@ export async function buildWorkbook(documentResult, options = {}) {
   workbook.created = new Date();
   workbook.modified = new Date();
 
-  addTableSheets(workbook, documentResult);
+  if (documentResult?.settings?.sheetMode === 'single') {
+    addSingleDataSheet(workbook, documentResult);
+  } else {
+    addTableSheets(workbook, documentResult);
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -32,14 +36,57 @@ export function buildVisualSheetSpecs(documentResult) {
 }
 
 export function buildWorkbookSheetPlan(documentResult, options = {}) {
-  const sourceTables = (documentResult.tables || []).every(table => Array.isArray(table?.matrix))
-    ? normalizeWorkbookTablesForExport(documentResult.tables || []).map(entry => entry.table)
-    : (documentResult.tables || []);
-  const dataSheets = sourceTables.map((table, index) => ({
+  if (documentResult?.settings?.sheetMode === 'single') {
+    return (documentResult.tables || []).length ? [{ type: 'data', sheetName: 'Dados' }] : [];
+  }
+
+  const entries = (documentResult.tables || []).every(table => Array.isArray(table?.matrix))
+    ? resolveWorkbookEntries(documentResult)
+    : (documentResult.tables || []).map(table => ({ table }));
+  return entries.map((entry, index) => ({
     type: 'data',
-    sheetName: buildTableSheetName(table, index),
+    sheetName: buildTableSheetName(entry.table, index),
   }));
-  return [...dataSheets];
+}
+
+export function buildSingleSheetLayout(entries = []) {
+  const blocks = [];
+  const mergedRanges = [];
+  const columnWidths = [];
+  let nextStartRow = 1;
+  let maxColumnCount = 1;
+
+  entries.forEach((entry, index) => {
+    const metrics = buildRenderableMetrics(entry.table, entry.renderable);
+    const absoluteMerges = metrics.merges.map(merge => offsetMergeRows(merge, nextStartRow - 1));
+
+    for (const existing of mergedRanges) {
+      for (const candidate of absoluteMerges) {
+        if (mergeRangesOverlap(existing, candidate)) {
+          throw new Error('As mesclagens da aba unica se sobrepoem.');
+        }
+      }
+    }
+
+    mergedRanges.push(...absoluteMerges);
+    pushMaxWidths(columnWidths, metrics.columnWidths);
+    maxColumnCount = Math.max(maxColumnCount, metrics.columnCount);
+    blocks.push({
+      ...metrics,
+      startRow: nextStartRow,
+      absoluteMerges,
+    });
+
+    nextStartRow += metrics.renderable.matrix.length;
+    if (index < entries.length - 1) nextStartRow += 1;
+  });
+
+  return {
+    blocks,
+    columnWidths,
+    maxColumnCount,
+    totalRows: Math.max(0, nextStartRow - 1),
+  };
 }
 
 export function buildAuditRows(documentResult) {
@@ -112,7 +159,7 @@ function addVisualSheets(workbook, documentResult) {
 function addTableSheets(workbook, documentResult) {
   const usedNames = new Set();
 
-  normalizeWorkbookTablesForExport(documentResult.tables || []).forEach((entry, index) => {
+  resolveWorkbookEntries(documentResult).forEach((entry, index) => {
     const table = entry.table;
     const renderable = entry.renderable;
     const sheetName = uniqueSheetName(buildTableSheetName(table, index), usedNames);
@@ -127,9 +174,77 @@ function addTableSheets(workbook, documentResult) {
   });
 }
 
+function addSingleDataSheet(workbook, documentResult) {
+  const usedNames = new Set();
+  const entries = resolveWorkbookEntries(documentResult);
+  const layout = buildSingleSheetLayout(entries);
+  const firstBlock = layout.blocks[0] || null;
+  const freezeFirstRow = firstBlock?.startRow === 1 && firstBlock?.renderable.headerRowIndex === 0;
+  const worksheet = workbook.addWorksheet(uniqueSheetName('Dados', usedNames), {
+    views: [{
+      state: freezeFirstRow ? 'frozen' : 'normal',
+      showGridLines: true,
+      ySplit: freezeFirstRow ? 1 : 0,
+    }],
+  });
+
+  worksheet.properties.defaultRowHeight = 15;
+  worksheet.properties.defaultColWidth = 12;
+  applyColumnWidths(worksheet, layout.columnWidths, Math.max(1, layout.maxColumnCount));
+
+  for (const block of layout.blocks) {
+    writeTableMatrix(worksheet, block.layoutTable, block.renderable, block.rowHeights, block.startRow);
+    applyMerges(worksheet, block.merges, block.startRow);
+  }
+
+  if (layout.blocks.length === 1) {
+    const onlyBlock = layout.blocks[0];
+    if (onlyBlock.renderable.headerRowIndex >= 0 && onlyBlock.renderable.matrix[onlyBlock.renderable.headerRowIndex]?.length) {
+      worksheet.autoFilter = {
+        from: { row: onlyBlock.startRow + onlyBlock.renderable.headerRowIndex, column: 1 },
+        to: { row: onlyBlock.startRow + onlyBlock.renderable.headerRowIndex, column: onlyBlock.renderable.matrix[onlyBlock.renderable.headerRowIndex].length },
+      };
+    }
+  }
+}
+
 function writeTable(worksheet, table, renderable = buildRenderableTable(table)) {
+  const { columnCount, layoutTable, rowHeights, columnWidths, merges } = buildRenderableMetrics(table, renderable);
+
+  worksheet.properties.defaultRowHeight = 15;
+  worksheet.properties.defaultColWidth = 12;
+  applyColumnWidths(worksheet, columnWidths, columnCount);
+  writeTableMatrix(worksheet, layoutTable, renderable, rowHeights, 1);
+  applyMerges(worksheet, merges, 1);
+  if (renderable.headerRowIndex >= 0 && renderable.matrix[renderable.headerRowIndex]?.length) {
+    worksheet.autoFilter = {
+      from: { row: renderable.headerRowIndex + 1, column: 1 },
+      to: { row: renderable.headerRowIndex + 1, column: renderable.matrix[renderable.headerRowIndex].length },
+    };
+  }
+}
+
+function resolveWorkbookEntries(documentResult = {}) {
+  return normalizeWorkbookTablesForExport(documentResult.tables || []);
+}
+
+function buildRenderableMetrics(table, renderable = buildRenderableTable(table)) {
   const columnCount = Math.max(1, ...renderable.matrix.map(row => row.length));
-  const layoutTable = {
+  const layoutTable = createLayoutTable(table, renderable);
+  const preferredWidths = deriveColumnWidths(layoutTable, columnCount);
+  return {
+    table,
+    renderable,
+    layoutTable,
+    columnCount,
+    rowHeights: deriveRowHeights(layoutTable, renderable.matrix.length),
+    columnWidths: ensureColumnWidths(preferredWidths, renderable.matrix, columnCount),
+    merges: buildTableMerges(layoutTable, renderable),
+  };
+}
+
+function createLayoutTable(table, renderable) {
+  return {
     ...table,
     displayMatrix: renderable.matrix,
     displayCells: renderable.cells,
@@ -139,20 +254,38 @@ function writeTable(worksheet, table, renderable = buildRenderableTable(table)) 
     rowMeta: renderable.rowMeta,
     headerRowIndex: renderable.headerRowIndex,
   };
-  const rowHeights = deriveRowHeights(layoutTable, renderable.matrix.length);
-  const columnWidths = deriveColumnWidths(layoutTable, columnCount);
+}
 
-  worksheet.properties.defaultRowHeight = 15;
-  worksheet.properties.defaultColWidth = 12;
-  applyColumnWidths(worksheet, columnWidths, columnCount);
-  writeTableMatrix(worksheet, layoutTable, renderable, rowHeights, 1);
-  applyMerges(worksheet, buildTableMerges(layoutTable, renderable), 1);
-  if (renderable.headerRowIndex >= 0 && renderable.matrix[renderable.headerRowIndex]?.length) {
-    worksheet.autoFilter = {
-      from: { row: renderable.headerRowIndex + 1, column: 1 },
-      to: { row: renderable.headerRowIndex + 1, column: renderable.matrix[renderable.headerRowIndex].length },
-    };
+function pushMaxWidths(targetWidths, candidateWidths = []) {
+  for (let index = 0; index < candidateWidths.length; index++) {
+    targetWidths[index] = Math.max(Number(targetWidths[index] || 0), Number(candidateWidths[index] || 0));
   }
+}
+
+function ensureColumnWidths(widths = [], matrix = [], columnCount = 1) {
+  if (widths.length) return widths;
+  return Array.from({ length: columnCount }, (_, columnIndex) => {
+    let maxLength = 10;
+    for (const row of matrix) {
+      maxLength = Math.max(maxLength, String(row?.[columnIndex] ?? '').length + 2);
+    }
+    return clamp(maxLength, 6, 80);
+  });
+}
+
+function offsetMergeRows(merge, rowOffset) {
+  return {
+    startRow: merge.startRow + rowOffset,
+    endRow: merge.endRow + rowOffset,
+    startColumn: merge.startColumn,
+    endColumn: merge.endColumn,
+  };
+}
+
+function mergeRangesOverlap(left, right) {
+  const rowsOverlap = left.startRow <= right.endRow && right.startRow <= left.endRow;
+  const columnsOverlap = left.startColumn <= right.endColumn && right.startColumn <= left.endColumn;
+  return rowsOverlap && columnsOverlap;
 }
 
 function writeTableMatrix(worksheet, sourceTable, renderable, rowHeights, startRow) {

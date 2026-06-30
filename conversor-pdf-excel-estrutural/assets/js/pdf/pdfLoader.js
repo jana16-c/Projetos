@@ -1,4 +1,4 @@
-import { ensurePdfJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
+import { ensurePdfJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-6';
 
 export async function ensurePdfJs() {
   await ensurePdfJsRuntime();

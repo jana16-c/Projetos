@@ -125,6 +125,7 @@ export function attachRuntimePageArtifacts(documentResult, pagesData = []) {
       rotation: Number(page.rotation ?? current.rotation ?? 0),
       textLayerDetected: Boolean(page.textLayerDetected ?? current.textLayerDetected),
       ocrApplied: Boolean(page.ocrApplied ?? current.ocrApplied),
+      visualRequired: Boolean(page.visualRequired ?? current.visualRequired),
       imageAvailable: Boolean(page.renderedPage?.dataUrl),
       visualGenerated: Boolean(page.renderedPage?.dataUrl),
       diagnostics: page.diagnostics || current.diagnostics || null,
@@ -174,7 +175,7 @@ export function validateContentConservation(sourceOrOptions = [], tables = [], u
     .filter(item => item.inBottomZone && (item.tableIds || []).length > 0)
     .map(item => item.id);
   const visualPagesMissing = safePages
-    .filter(page => !page.visualGenerated)
+    .filter(page => page.visualRequired && !page.visualGenerated)
     .map(page => page.pageNumber);
   const warnings = [];
 
@@ -222,6 +223,7 @@ function cacheInternalSourceState(documentResult, pagesData = []) {
     rotation: Number(page.rotation || 0),
     textLayerDetected: Boolean(page.textLayerDetected),
     ocrApplied: Boolean(page.ocrApplied),
+    visualRequired: Boolean(page.visualRequired),
     imageAvailable: Boolean(page.renderedPage?.dataUrl),
     visualGenerated: Boolean(page.renderedPage?.dataUrl),
     diagnostics: page.diagnostics || null,
@@ -306,7 +308,7 @@ function buildPageStates({
       ...(page.diagnostics?.ocrWarnings || []),
       ...(page.diagnostics?.warnings || []),
     ];
-    if (!page.visualGenerated) warnings.push('Imagem visual integral nao foi gerada.');
+    if (page.visualRequired && !page.visualGenerated) warnings.push('Imagem visual integral nao foi gerada.');
     if (unassignedItems.some(item => item.insideDetectedTable)) warnings.push('Existem itens nao associados dentro da area de tabela.');
     if (bottomZoneUnassignedItems.some(item => item.tableIds?.length)) warnings.push('Existem itens finais da zona inferior sem associacao editavel.');
 
@@ -316,7 +318,7 @@ function buildPageStates({
       return item && findContainingTables(item, tableBoundsIndex).length > 0;
     });
 
-    if (!page.visualGenerated || hasLostTableContent) {
+    if ((page.visualRequired && !page.visualGenerated) || hasLostTableContent) {
       status = 'FALHA';
     } else if (
       warnings.length
@@ -333,6 +335,7 @@ function buildPageStates({
       rotation: Number(page.rotation || 0),
       textLayerDetected: Boolean(page.textLayerDetected),
       ocrApplied: Boolean(page.ocrApplied),
+      visualRequired: Boolean(page.visualRequired),
       imageAvailable: Boolean(page.imageAvailable),
       visualGenerated: Boolean(page.visualGenerated),
       diagnostics: page.diagnostics || null,

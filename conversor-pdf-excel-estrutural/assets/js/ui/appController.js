@@ -1,21 +1,21 @@
-import { $, $all } from '../utils/dom.js?v=2026-06-30-livepreview-4';
-import { parsePageSpec } from '../utils/pages.js?v=2026-06-30-livepreview-4';
+import { $, $all } from '../utils/dom.js?v=2026-06-30-livepreview-6';
+import { parsePageSpec } from '../utils/pages.js?v=2026-06-30-livepreview-6';
 import {
   buildDefaultPageSpec,
   formatPageList,
   normalizeSpecText,
   selectionSummary,
   shouldApplyDefaultPageSpec,
-} from '../utils/pageSelection.js?v=2026-06-30-livepreview-4';
-import { runPageSelectionSelfTest } from '../utils/pageSelection.test.js?v=2026-06-30-livepreview-4';
-import { downloadBlob } from '../utils/download.js?v=2026-06-30-livepreview-4';
-import { loadPdfDocument } from '../pdf/pdfLoader.js?v=2026-06-30-livepreview-4';
-import { extractDocumentTables } from '../extraction/tableExtractor.js?v=2026-06-30-livepreview-4';
-import { buildXlsxExport, buildXlsmExport, buildZipExport } from '../export/exportService.js?v=2026-06-30-livepreview-4';
-import { StatusView } from './status.js?v=2026-06-30-livepreview-4';
-import { DEFAULT_SETTINGS } from '../config/settings.js?v=2026-06-30-livepreview-4';
-import { checkRuntimeLibraries } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-4';
-import { processDocumentInBrowser } from '../processing/browserProcessor.js?v=2026-06-30-livepreview-4';
+} from '../utils/pageSelection.js?v=2026-06-30-livepreview-6';
+import { runPageSelectionSelfTest } from '../utils/pageSelection.test.js?v=2026-06-30-livepreview-6';
+import { downloadBlob } from '../utils/download.js?v=2026-06-30-livepreview-6';
+import { loadPdfDocument } from '../pdf/pdfLoader.js?v=2026-06-30-livepreview-6';
+import { extractDocumentTables } from '../extraction/tableExtractor.js?v=2026-06-30-livepreview-6';
+import { buildXlsxExport, buildXlsmExport, buildZipExport } from '../export/exportService.js?v=2026-06-30-livepreview-6';
+import { StatusView } from './status.js?v=2026-06-30-livepreview-6';
+import { DEFAULT_SETTINGS } from '../config/settings.js?v=2026-06-30-livepreview-6';
+import { checkRuntimeLibraries } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-6';
+import { processDocumentInBrowser } from '../processing/browserProcessor.js?v=2026-06-30-livepreview-6';
 import {
   addTableColumn,
   addTableRow,
@@ -27,7 +27,7 @@ import {
   resetEditedTable,
   splitMergedTable,
   undoTableEdit,
-} from './tableEditor.js?v=2026-06-30-livepreview-4';
+} from './tableEditor.js?v=2026-06-30-livepreview-6';
 
 export class AppController {
   constructor() {

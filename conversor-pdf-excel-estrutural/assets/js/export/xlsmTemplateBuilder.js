@@ -1,7 +1,7 @@
-import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-4';
-import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-4';
-import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-4';
-import { buildAuditRows, buildUnassignedRows, resolveRenderableCellInfo } from './workbookBuilder.js?v=2026-06-30-livepreview-4';
+import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-5';
+import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-5';
+import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-5';
+import { buildAuditRows, buildSingleSheetLayout, buildUnassignedRows, normalizeWorkbookTablesForExport, resolveRenderableCellInfo } from './workbookBuilder.js?v=2026-06-30-livepreview-5';
 
 const MAX_XLSM_SOURCE_AUDIT_ROWS = 5000;
 
@@ -73,18 +73,46 @@ export function replaceExtractionSheets(workbook, sheets) {
 export function buildExtractionSheets(XLSX, documentResult, options = {}) {
   const sheets = [];
 
-  for (const table of documentResult.tables) {
-    const name = safeSheetName(`EXTRACAO_P${table.pageNumber}_T${table.tableIndex}`);
-    const renderable = buildRenderableTable(table);
-    const matrix = renderable.matrix.map((row, rowIndex) => row.map((_, columnIndex) => xlsmValue(resolveRenderableCellInfo(renderable, rowIndex, columnIndex))));
+  if (documentResult?.settings?.sheetMode === 'single') {
+    const entries = normalizeWorkbookTablesForExport(documentResult.tables || []);
+    const layout = buildSingleSheetLayout(entries);
+    const rowCount = Math.max(1, layout.totalRows);
+    const columnCount = Math.max(1, layout.maxColumnCount);
+    const matrix = Array.from({ length: rowCount }, () => Array(columnCount).fill(''));
+    const rowHeights = Array.from({ length: rowCount }, () => ({ hpt: 15 }));
+
+    for (const block of layout.blocks) {
+      for (let rowIndex = 0; rowIndex < block.renderable.matrix.length; rowIndex++) {
+        const targetRow = block.startRow - 1 + rowIndex;
+        rowHeights[targetRow] = { hpt: block.rowHeights[rowIndex] || 15 };
+        for (let columnIndex = 0; columnIndex < block.renderable.matrix[rowIndex].length; columnIndex++) {
+          matrix[targetRow][columnIndex] = xlsmValue(resolveRenderableCellInfo(block.renderable, rowIndex, columnIndex));
+        }
+      }
+    }
+
     const sheet = XLSX.utils.aoa_to_sheet(matrix);
-    sheet['!cols'] = buildCols(matrix, deriveColumnWidths(table, Math.max(1, ...renderable.matrix.map(row => row.length))));
-    sheet['!rows'] = deriveRowHeights(table, matrix.length).map(height => ({ hpt: height }));
-    sheet['!merges'] = buildTableMerges(table, renderable).map(merge => ({
+    sheet['!cols'] = buildCols(matrix, layout.columnWidths);
+    sheet['!rows'] = rowHeights;
+    sheet['!merges'] = layout.blocks.flatMap(block => block.absoluteMerges.map(merge => ({
       s: { r: merge.startRow, c: merge.startColumn },
       e: { r: merge.endRow, c: merge.endColumn },
-    }));
-    sheets.push({ name, sheet });
+    })));
+    sheets.push({ name: safeSheetName('EXTRACAO_DADOS'), sheet });
+  } else {
+    for (const table of documentResult.tables) {
+      const name = safeSheetName(`EXTRACAO_P${table.pageNumber}_T${table.tableIndex}`);
+      const renderable = buildRenderableTable(table);
+      const matrix = renderable.matrix.map((row, rowIndex) => row.map((_, columnIndex) => xlsmValue(resolveRenderableCellInfo(renderable, rowIndex, columnIndex))));
+      const sheet = XLSX.utils.aoa_to_sheet(matrix);
+      sheet['!cols'] = buildCols(matrix, deriveColumnWidths(table, Math.max(1, ...renderable.matrix.map(row => row.length))));
+      sheet['!rows'] = deriveRowHeights(table, matrix.length).map(height => ({ hpt: height }));
+      sheet['!merges'] = buildTableMerges(table, renderable).map(merge => ({
+        s: { r: merge.startRow, c: merge.startColumn },
+        e: { r: merge.endRow, c: merge.endColumn },
+      }));
+      sheets.push({ name, sheet });
+    }
   }
 
   const diagnosticRows = [

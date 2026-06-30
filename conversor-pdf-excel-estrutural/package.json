@@ -8,7 +8,8 @@
     "test": "node tests/run-all.mjs",
     "test:pages": "node tests/pages.test.mjs",
     "test:extraction": "node tests/extraction.test.mjs",
-    "check:syntax": "node scripts/check-syntax.mjs"
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "build": "node scripts/build-standalone.mjs"
   },
   "dependencies": {}
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   buildAuditRows,
+  buildSingleSheetLayout,
   buildUnassignedRows,
   buildWorkbookSheetPlan,
   normalizeWorkbookTablesForExport,
@@ -86,6 +87,68 @@ const cleanSheetPlan = buildWorkbookSheetPlan({
   selectedPages: [1],
 });
 assert.deepEqual(cleanSheetPlan.map(item => item.sheetName), ['Dados_T001']);
+
+const singleSheetPlan = buildWorkbookSheetPlan({
+  tables: [{ pageNumber: 1 }, { pageNumber: 2 }],
+  settings: { sheetMode: 'single' },
+});
+assert.deepEqual(singleSheetPlan.map(item => item.sheetName), ['Dados']);
+
+const singleSheetLayout = buildSingleSheetLayout([
+  {
+    table: { pageNumber: 1, tableIndex: 1 },
+    renderable: {
+      headerRowIndex: 1,
+      matrix: [
+        ['Resumo', '', ''],
+        ['A', 'B', 'C'],
+        ['1', '2', '3'],
+      ],
+      cells: [
+        [{ value: 'Resumo' }, { value: '' }, { value: '' }],
+        [{ value: 'A' }, { value: 'B' }, { value: 'C' }],
+        [{ value: '1' }, { value: '2' }, { value: '3' }],
+      ],
+      rowMeta: [
+        { isTitle: true, cellMeta: [] },
+        { isHeader: true, cellMeta: [] },
+        { cellMeta: [] },
+      ],
+    },
+  },
+  {
+    table: { pageNumber: 2, tableIndex: 1 },
+    renderable: {
+      headerRowIndex: 1,
+      matrix: [
+        ['Cabecalho maior', '', ''],
+        ['X', 'Y', 'Z'],
+        ['10', '20', '30'],
+      ],
+      cells: [
+        [{ value: 'Cabecalho maior' }, { value: '' }, { value: '' }],
+        [{ value: 'X' }, { value: 'Y' }, { value: 'Z' }],
+        [{ value: '10' }, { value: '20' }, { value: '30' }],
+      ],
+      rowMeta: [
+        { isTitle: true, cellMeta: [] },
+        { isHeader: true, cellMeta: [] },
+        { cellMeta: [] },
+      ],
+    },
+  },
+]);
+assert.equal(singleSheetLayout.blocks.length, 2);
+assert.equal(singleSheetLayout.blocks[1].startRow, 5);
+assert.equal(singleSheetLayout.totalRows, 7);
+assert.equal(singleSheetLayout.columnWidths[0] >= singleSheetLayout.blocks[0].columnWidths[0], true);
+assert.equal(singleSheetLayout.columnWidths[0] >= singleSheetLayout.blocks[1].columnWidths[0], true);
+assert.deepEqual(singleSheetLayout.blocks[1].absoluteMerges[0], {
+  startRow: 4,
+  endRow: 4,
+  startColumn: 0,
+  endColumn: 2,
+});
 
 const frontMatterTables = normalizeWorkbookTablesForExport([
   {
