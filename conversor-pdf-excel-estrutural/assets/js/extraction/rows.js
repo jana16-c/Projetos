@@ -1,4 +1,4 @@
-import { median, weightedAverage, isBoldFont, isItalicFont } from './geometry.js';
+import { median, weightedAverage, isBoldFont, isItalicFont } from './geometry.js?v=2026-06-30-livepreview-3';
 
 export function buildRows(items, settings) {
   if (!items.length) return { rows: [], stats: defaultStats() };

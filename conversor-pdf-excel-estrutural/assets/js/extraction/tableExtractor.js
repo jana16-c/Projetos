@@ -1,14 +1,14 @@
-import { buildRows } from './rows.js';
-import { buildColumnModel, rowsToMatrix } from './columns.js';
-import { buildDiagnostics } from './diagnostics.js';
-import { detectTableBlocks } from './tableBlocks.js';
-import { detectHeaderSignature } from './headerSignature.js';
-import { attachCellClassification } from './valueClassifier.js';
-import { mergeContinuationTables } from './tableContinuation.js';
-import { mergeSplitBoundaryRow } from './splitRowContinuation.js';
-import { buildTablesFromVisualGrid } from './visualTableExtractor.js';
-import { buildDocumentResult } from '../model/resultModel.js';
-import { cellLooksNumeric } from './geometry.js';
+import { buildRows } from './rows.js?v=2026-06-30-livepreview-3';
+import { buildColumnModel, rowsToMatrix } from './columns.js?v=2026-06-30-livepreview-3';
+import { buildDiagnostics } from './diagnostics.js?v=2026-06-30-livepreview-3';
+import { detectTableBlocks } from './tableBlocks.js?v=2026-06-30-livepreview-3';
+import { detectHeaderSignature } from './headerSignature.js?v=2026-06-30-livepreview-3';
+import { attachCellClassification } from './valueClassifier.js?v=2026-06-30-livepreview-3';
+import { mergeContinuationTables } from './tableContinuation.js?v=2026-06-30-livepreview-3';
+import { mergeSplitBoundaryRow } from './splitRowContinuation.js?v=2026-06-30-livepreview-3';
+import { buildTablesFromVisualGrid } from './visualTableExtractor.js?v=2026-06-30-livepreview-3';
+import { buildDocumentResult } from '../model/resultModel.js?v=2026-06-30-livepreview-3';
+import { cellLooksNumeric } from './geometry.js?v=2026-06-30-livepreview-3';
 
 export function extractStructuredPage(pageData, settings) {
   const documentResult = extractDocumentTables({

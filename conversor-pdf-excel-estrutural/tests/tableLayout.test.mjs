@@ -162,4 +162,32 @@ assert.deepEqual(normalizedContinuation.matrix, [
   ['08/2012', '06/07/2017', '0,00'],
 ]);
 
+const duplicatedPreludeTable = {
+  headerRowIndex: 2,
+  matrix: [
+    ['Demonstrativo de Juros sobre Verbas', '', '', ''],
+    ['Demonstrativo de Juros sobre Verbas', '', '', ''],
+    ['', 'Ocorrencia', 'Data Inicial', 'Juros'],
+    ['', '07/2012', '06/07/2017', '0,00'],
+  ],
+  cells: [
+    [{ value: 'Demonstrativo de Juros sobre Verbas' }, { value: '' }, { value: '' }, { value: '' }],
+    [{ value: 'Demonstrativo de Juros sobre Verbas' }, { value: '' }, { value: '' }, { value: '' }],
+    [{ value: '' }, { value: 'Ocorrencia' }, { value: 'Data Inicial' }, { value: 'Juros' }],
+    [{ value: '' }, { value: '07/2012' }, { value: '06/07/2017' }, { value: '0,00' }],
+  ],
+  rowMeta: [
+    { isTitle: true, cellMeta: [] },
+    { isTitle: true, cellMeta: [] },
+    { isHeader: true, cellMeta: [] },
+    { cellMeta: [] },
+  ],
+};
+const dedupedPrelude = buildRenderableTable(duplicatedPreludeTable);
+assert.deepEqual(dedupedPrelude.matrix, [
+  ['Demonstrativo de Juros sobre Verbas', '', ''],
+  ['Ocorrencia', 'Data Inicial', 'Juros'],
+  ['07/2012', '06/07/2017', '0,00'],
+]);
+
 console.log('tableLayout.test.mjs OK');

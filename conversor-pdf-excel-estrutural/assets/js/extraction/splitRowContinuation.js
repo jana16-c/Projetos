@@ -1,4 +1,4 @@
-import { cellLooksNumeric } from './geometry.js';
+import { cellLooksNumeric } from './geometry.js?v=2026-06-30-livepreview-3';
 
 const MIN_CONFIDENCE = 0.78;
 const TERMINAL_ROW_RE = /\b(total|subtotal|total geral|fim|encerramento)\b/i;

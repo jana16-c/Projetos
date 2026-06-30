@@ -1,21 +1,21 @@
-import { $, $all } from '../utils/dom.js';
-import { parsePageSpec } from '../utils/pages.js';
+import { $, $all } from '../utils/dom.js?v=2026-06-30-livepreview-3';
+import { parsePageSpec } from '../utils/pages.js?v=2026-06-30-livepreview-3';
 import {
   buildDefaultPageSpec,
   formatPageList,
   normalizeSpecText,
   selectionSummary,
   shouldApplyDefaultPageSpec,
-} from '../utils/pageSelection.js';
-import { runPageSelectionSelfTest } from '../utils/pageSelection.test.js';
-import { downloadBlob } from '../utils/download.js';
-import { loadPdfDocument } from '../pdf/pdfLoader.js';
-import { extractDocumentTables } from '../extraction/tableExtractor.js';
-import { buildXlsxExport, buildXlsmExport, buildZipExport } from '../export/exportService.js';
-import { StatusView } from './status.js';
-import { DEFAULT_SETTINGS } from '../config/settings.js';
-import { checkRuntimeLibraries } from '../vendor/vendorLoader.js';
-import { processDocumentInBrowser } from '../processing/browserProcessor.js';
+} from '../utils/pageSelection.js?v=2026-06-30-livepreview-3';
+import { runPageSelectionSelfTest } from '../utils/pageSelection.test.js?v=2026-06-30-livepreview-3';
+import { downloadBlob } from '../utils/download.js?v=2026-06-30-livepreview-3';
+import { loadPdfDocument } from '../pdf/pdfLoader.js?v=2026-06-30-livepreview-3';
+import { extractDocumentTables } from '../extraction/tableExtractor.js?v=2026-06-30-livepreview-3';
+import { buildXlsxExport, buildXlsmExport, buildZipExport } from '../export/exportService.js?v=2026-06-30-livepreview-3';
+import { StatusView } from './status.js?v=2026-06-30-livepreview-3';
+import { DEFAULT_SETTINGS } from '../config/settings.js?v=2026-06-30-livepreview-3';
+import { checkRuntimeLibraries } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
+import { processDocumentInBrowser } from '../processing/browserProcessor.js?v=2026-06-30-livepreview-3';
 import {
   addTableColumn,
   addTableRow,
@@ -27,7 +27,7 @@ import {
   resetEditedTable,
   splitMergedTable,
   undoTableEdit,
-} from './tableEditor.js';
+} from './tableEditor.js?v=2026-06-30-livepreview-3';
 
 export class AppController {
   constructor() {

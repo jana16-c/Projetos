@@ -1,6 +1,6 @@
-import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js';
-import { buildXlsmFromTemplate, buildXlsmFilename } from './xlsmTemplateBuilder.js';
-import { buildZipPackage, buildZipFilename } from './zipBuilder.js';
+import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js?v=2026-06-30-livepreview-3';
+import { buildXlsmFromTemplate, buildXlsmFilename } from './xlsmTemplateBuilder.js?v=2026-06-30-livepreview-3';
+import { buildZipPackage, buildZipFilename } from './zipBuilder.js?v=2026-06-30-livepreview-3';
 
 export async function buildXlsxExport(documentResult, options = {}) {
   return {

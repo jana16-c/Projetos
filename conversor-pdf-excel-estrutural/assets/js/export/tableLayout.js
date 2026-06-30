@@ -1,4 +1,6 @@
-import { median } from '../extraction/geometry.js';
+import { median } from '../extraction/geometry.js?v=2026-06-30-livepreview-3';
+
+const DECORATIVE_ROW_RE = /\b(c[aá]lculo liquidado|p[aá]g\.\s*\d+|vers[aã]o\s+\d+\.\d+)\b/i;
 
 export function buildRenderableTable(table) {
   const sourceMatrix = table.displayMatrix || table.matrix || [];
@@ -300,10 +302,38 @@ function normalizeRenderableLayout(renderable) {
   let headerRowIndex = renderable.headerRowIndex;
 
   ({ matrix, cells, rowMeta, headerRowIndex } = dropBlankRows(matrix, cells, rowMeta, headerRowIndex));
+  ({ matrix, cells, rowMeta, headerRowIndex } = dropDecorativeRows(matrix, cells, rowMeta, headerRowIndex));
   collapsePreludeRows(matrix, cells, rowMeta, headerRowIndex);
+  ({ matrix, cells, rowMeta, headerRowIndex } = dropDuplicatePreludeRows(matrix, cells, rowMeta, headerRowIndex));
   ({ matrix, cells, rowMeta } = compactColumnsAgainstHeader(matrix, cells, rowMeta, headerRowIndex));
 
   return { matrix, cells, rowMeta, headerRowIndex };
+}
+
+function dropDecorativeRows(matrix, cells, rowMeta, headerRowIndex) {
+  const nextMatrix = [];
+  const nextCells = [];
+  const nextRowMeta = [];
+  let nextHeaderIndex = headerRowIndex;
+
+  for (let index = 0; index < matrix.length; index++) {
+    const row = matrix[index] || [];
+    const text = row.map(value => String(value ?? '').trim()).filter(Boolean).join(' ');
+    if (DECORATIVE_ROW_RE.test(text)) {
+      if (index < nextHeaderIndex) nextHeaderIndex -= 1;
+      continue;
+    }
+    nextMatrix.push([...row]);
+    nextCells.push(cloneCellRow(cells[index]));
+    nextRowMeta.push(cloneRowMeta(rowMeta[index]));
+  }
+
+  return {
+    matrix: nextMatrix,
+    cells: nextCells,
+    rowMeta: nextRowMeta,
+    headerRowIndex: nextHeaderIndex,
+  };
 }
 
 function resolveSegmentHeaderPosition(segmentIndexes, sourceMatrix, mainHeaderSignature, preferredLogicalHeaderIndex = -1) {
@@ -393,6 +423,39 @@ function collapsePreludeRows(matrix, cells, rowMeta, headerRowIndex) {
   }
 }
 
+function dropDuplicatePreludeRows(matrix, cells, rowMeta, headerRowIndex) {
+  const limit = headerRowIndex < 0 ? matrix.length : headerRowIndex;
+  const nextMatrix = [];
+  const nextCells = [];
+  const nextRowMeta = [];
+  let nextHeaderIndex = headerRowIndex;
+  let previousPreludeText = '';
+
+  for (let rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
+    const row = matrix[rowIndex] || [];
+    const text = normalizeAsciiText(row.map(value => String(value ?? '').trim()).filter(Boolean).join(' '));
+    const inPrelude = rowIndex < limit;
+    const isDuplicatePrelude = inPrelude && text && text === previousPreludeText;
+
+    if (isDuplicatePrelude) {
+      if (rowIndex < nextHeaderIndex) nextHeaderIndex -= 1;
+      continue;
+    }
+
+    nextMatrix.push([...row]);
+    nextCells.push(cloneCellRow(cells[rowIndex]));
+    nextRowMeta.push(cloneRowMeta(rowMeta[rowIndex]));
+    if (inPrelude && text) previousPreludeText = text;
+  }
+
+  return {
+    matrix: nextMatrix,
+    cells: nextCells,
+    rowMeta: nextRowMeta,
+    headerRowIndex: nextHeaderIndex,
+  };
+}
+
 function rewritePreludeRow(matrix, cells, rowMeta, rowIndex, values, columnCount) {
   matrix[rowIndex] = padRow([...values], columnCount, '');
   const firstCell = cells[rowIndex]?.find(cell => String(cell?.value ?? '').trim()) || cells[rowIndex]?.[0] || {};
@@ -456,9 +519,7 @@ function trimGloballyEmptyTrailingColumns(matrix, cells, rowMeta) {
 }
 
 function normalizeHeaderSignature(row = []) {
-  return row
-    .map(value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
+  return row.map(normalizeAsciiText).filter(Boolean);
 }
 
 function sameHeaderSignature(left = [], right = []) {
@@ -495,6 +556,16 @@ function createEmptyLayoutMeta() {
     x: 0,
     sourceItemIds: [],
   };
+}
+
+function normalizeAsciiText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function harmonizeColumnWidth(baseWidth, profile, index) {

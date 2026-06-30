@@ -1,5 +1,5 @@
-import { detectHeaderSignature } from './headerSignature.js';
-import { attachCellClassification } from './valueClassifier.js';
+import { detectHeaderSignature } from './headerSignature.js?v=2026-06-30-livepreview-3';
+import { attachCellClassification } from './valueClassifier.js?v=2026-06-30-livepreview-3';
 
 export function buildTablesFromVisualGrid(pageData, settings = {}) {
   const visualTables = Array.isArray(pageData?.visualTables) ? pageData.visualTables : [];

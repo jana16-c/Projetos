@@ -1,4 +1,4 @@
-import { $ } from '../utils/dom.js';
+import { $ } from '../utils/dom.js?v=2026-06-30-livepreview-3';
 
 export class StatusView {
   constructor() {

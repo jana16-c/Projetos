@@ -28,6 +28,26 @@ const blocks = detectTableBlocks(rows, 595);
 assert.equal(blocks.length, 2);
 assert.ok(blocks[0].confidence >= 0.6);
 
+const compositeItems = [
+  makeItem('OCORRENCIA', 40, 100),
+  makeItem('VALOR', 220, 100),
+  makeItem('07/2020', 40, 120),
+  makeItem('10,00', 220, 120),
+  makeItem('08/2020', 40, 140),
+  makeItem('12,00', 220, 140),
+  makeItem('Total', 40, 160),
+  makeItem('22,00', 220, 160),
+  makeItem('Demonstrativo de FGTS', 40, 182),
+  makeItem('Nome:', 40, 202),
+  makeItem('FGTS 8%', 180, 202),
+  makeItem('Período:', 40, 222),
+  makeItem('07/2020 a 08/2020', 180, 222),
+];
+const { rows: compositeRows } = buildRows(compositeItems, { rowTolerance: 0.62, gapFactor: 2.3 });
+const splitBlocks = detectTableBlocks(compositeRows, 595);
+assert.equal(splitBlocks.length, 2);
+assert.match(splitBlocks[1].rows[0].text, /Demonstrativo de FGTS/i);
+
 console.log('tableBlocks.test.mjs OK');
 
 function makeItem(text, x, y) {

@@ -9,8 +9,8 @@ import {
   splitTableFromPrevious,
   undoTableChange,
   updateCell,
-} from '../model/tableModel.js';
-import { refreshDocumentResultDerivedState } from '../model/resultModel.js';
+} from '../model/tableModel.js?v=2026-06-30-livepreview-3';
+import { refreshDocumentResultDerivedState } from '../model/resultModel.js?v=2026-06-30-livepreview-3';
 
 export function applyTableCellEdit(documentResult, tableId, rowIndex, columnIndex, value) {
   const table = findTable(documentResult, tableId);

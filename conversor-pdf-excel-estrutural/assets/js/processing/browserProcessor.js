@@ -1,8 +1,8 @@
-import { extractDocumentTables } from '../extraction/tableExtractor.js';
-import { attachRuntimePageArtifacts, hydrateDocumentResult } from '../model/resultModel.js';
-import { extractPageTextItemsWithOptions } from '../pdf/pdfLoader.js';
-import { renderPdfPageToPng } from '../pdf/pageRenderer.js';
-import { ensureTesseractRuntime } from '../vendor/vendorLoader.js';
+import { extractDocumentTables } from '../extraction/tableExtractor.js?v=2026-06-30-livepreview-3';
+import { attachRuntimePageArtifacts, hydrateDocumentResult } from '../model/resultModel.js?v=2026-06-30-livepreview-3';
+import { extractPageTextItemsWithOptions } from '../pdf/pdfLoader.js?v=2026-06-30-livepreview-3';
+import { renderPdfPageToPng } from '../pdf/pageRenderer.js?v=2026-06-30-livepreview-3';
+import { ensureTesseractRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
 
 const OCR_TEXT_MIN_ITEMS = 3;
 let workerSequence = 0;

@@ -5,7 +5,7 @@ import {
   isMoneyLike,
   isPercentageLike,
   looksLikeIdentifier,
-} from '../utils/identifiers.js';
+} from '../utils/identifiers.js?v=2026-06-30-livepreview-3';
 
 export function classifyCellValue(value, options = {}) {
   const text = String(value ?? '').trim();

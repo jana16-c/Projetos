@@ -1,7 +1,7 @@
-import { detectHeaderSignature } from '../extraction/headerSignature.js';
-import { attachCellClassification } from '../extraction/valueClassifier.js';
-import { combineTables } from '../extraction/tableContinuation.js';
-import { reindexTables } from './resultModel.js';
+import { detectHeaderSignature } from '../extraction/headerSignature.js?v=2026-06-30-livepreview-3';
+import { attachCellClassification } from '../extraction/valueClassifier.js?v=2026-06-30-livepreview-3';
+import { combineTables } from '../extraction/tableContinuation.js?v=2026-06-30-livepreview-3';
+import { reindexTables } from './resultModel.js?v=2026-06-30-livepreview-3';
 
 export function updateCell(table, rowIndex, columnIndex, value) {
   withHistory(table, 'edit-cell', { row: rowIndex, column: columnIndex, oldValue: table.matrix[rowIndex]?.[columnIndex] || '', newValue: value }, () => {

@@ -1,13 +1,17 @@
-import { AppController } from './ui/appController.js';
-
 window.addEventListener('DOMContentLoaded', () => {
+  startApp();
+});
+
+async function startApp() {
+  const version = window.__APP_VERSION__ ? `?v=${encodeURIComponent(window.__APP_VERSION__)}` : '';
   try {
+    const { AppController } = await import(`./ui/appController.js${version}`);
     new AppController();
   } catch (error) {
     console.error(error);
     renderBootMessage(`Erro ao iniciar app: ${error.message}`);
   }
-});
+}
 
 function renderBootMessage(message) {
   const status = document.querySelector('#statusText');

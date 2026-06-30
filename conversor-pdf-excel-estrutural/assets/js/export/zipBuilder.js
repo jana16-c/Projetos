@@ -1,10 +1,10 @@
-import { matrixToCsv } from './csvBuilder.js';
-import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js';
-import { buildXlsmFilename, buildXlsmFromTemplate } from './xlsmTemplateBuilder.js';
-import { safeFileStem } from '../utils/download.js';
-import { ensureZipJsRuntime } from '../vendor/vendorLoader.js';
-import { collectWarnings } from '../model/resultModel.js';
-import { buildRenderableTable } from './tableLayout.js';
+import { matrixToCsv } from './csvBuilder.js?v=2026-06-30-livepreview-3';
+import { buildWorkbook, buildExcelFilename } from './workbookBuilder.js?v=2026-06-30-livepreview-3';
+import { buildXlsmFilename, buildXlsmFromTemplate } from './xlsmTemplateBuilder.js?v=2026-06-30-livepreview-3';
+import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-3';
+import { ensureZipJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
+import { collectWarnings } from '../model/resultModel.js?v=2026-06-30-livepreview-3';
+import { buildRenderableTable } from './tableLayout.js?v=2026-06-30-livepreview-3';
 
 export async function buildZipPackage(documentResult, templateFile = null, options = {}) {
   await ensureZipJsRuntime();

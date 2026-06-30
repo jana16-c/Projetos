@@ -1,4 +1,4 @@
-import { cellLooksNumeric, median, percentile } from './geometry.js';
+import { cellLooksNumeric, median, percentile } from './geometry.js?v=2026-06-30-livepreview-3';
 
 export function buildColumnModel(rows, pageWidth, settings) {
   const segments = rows.flatMap(row => row.segments.map(segment => ({ ...segment, rowIndex: row.index })));

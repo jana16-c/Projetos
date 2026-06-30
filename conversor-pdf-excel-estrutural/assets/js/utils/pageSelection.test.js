@@ -1,5 +1,5 @@
-import { parsePageSpec } from './pages.js';
-import { buildDefaultPageSpec, shouldApplyDefaultPageSpec, selectionSummary } from './pageSelection.js';
+import { parsePageSpec } from './pages.js?v=2026-06-30-livepreview-3';
+import { buildDefaultPageSpec, shouldApplyDefaultPageSpec, selectionSummary } from './pageSelection.js?v=2026-06-30-livepreview-3';
 
 export function runPageSelectionSelfTest() {
   const selected = parsePageSpec('2, 4-5', 10);

@@ -1,7 +1,7 @@
-import { safeFileStem } from '../utils/download.js';
-import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js';
-import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js';
-import { buildAuditRows, buildUnassignedRows } from './workbookBuilder.js';
+import { safeFileStem } from '../utils/download.js?v=2026-06-30-livepreview-3';
+import { ensureSheetJsRuntime } from '../vendor/vendorLoader.js?v=2026-06-30-livepreview-3';
+import { buildRenderableTable, buildTableMerges, deriveColumnWidths, deriveRowHeights } from './tableLayout.js?v=2026-06-30-livepreview-3';
+import { buildAuditRows, buildUnassignedRows } from './workbookBuilder.js?v=2026-06-30-livepreview-3';
 
 const MAX_XLSM_SOURCE_AUDIT_ROWS = 5000;
 

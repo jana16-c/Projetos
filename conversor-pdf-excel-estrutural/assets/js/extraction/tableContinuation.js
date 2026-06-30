@@ -1,5 +1,5 @@
-import { jaccardSimilarity } from './geometry.js';
-import { mergeSplitBoundaryRow } from './splitRowContinuation.js';
+import { jaccardSimilarity } from './geometry.js?v=2026-06-30-livepreview-3';
+import { mergeSplitBoundaryRow } from './splitRowContinuation.js?v=2026-06-30-livepreview-3';
 
 const TERMINAL_ROW_RE = /\b(total|subtotal|total geral|fim|encerramento)\b/i;
 const DECORATIVE_FOOTER_RE = /\b(c[aá]lculo liquidado|p[aá]g\.\s*\d+|vers[aã]o\s+\d+\.\d+)\b/i;
@@ -39,12 +39,15 @@ export function canMergeTables(previous, current) {
   const hasComparableHeaders = Boolean(previous.headerSignature?.length && current.headerSignature?.length);
   const geometricallyContinuous = isNearBottom(previous) && isNearTop(current);
   const samePageContinuation = isLikelySamePageContinuation(previous, current, headerSimilarity, anchorDistance);
+  const exactHeaderContinuation = hasComparableHeaders && headerSimilarity >= 0.95;
 
   if (!compatibleColumns) return false;
   if (endsWithTerminalRow(previous)) return false;
   if (samePage) return samePageContinuation || strongAlignedHeaders;
   if (hasComparableHeaders) {
     return (
+      exactHeaderContinuation
+      || 
       (headerSimilarity >= 0.72 && anchorDistance <= 0.08)
       || (geometricallyContinuous && anchorDistance <= 0.08)
       || (geometricallyContinuous && strongAlignedHeaders)
